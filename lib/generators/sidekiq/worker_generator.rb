@@ -1,9 +1,9 @@
 require 'rails/generators/named_base'
 
-module Sidekiq1
+module Sidekiq2
   module Generators # :nodoc:
     class WorkerGenerator < ::Rails::Generators::NamedBase # :nodoc:
-      desc 'This generator creates a Sidekiq1 Worker in app/workers and a corresponding test'
+      desc 'This generator creates a Sidekiq2 Worker in app/workers and a corresponding test'
 
       check_class_collision suffix: 'Worker'
 

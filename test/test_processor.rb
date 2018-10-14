@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/fetch'
-require 'sidekiq1/cli'
-require 'sidekiq1/processor'
+require 'sidekiq2/fetch'
+require 'sidekiq2/cli'
+require 'sidekiq2/processor'
 
-class TestProcessor < Sidekiq1::Test
+class TestProcessor < Sidekiq2::Test
   TestException = Class.new(StandardError)
   TEST_EXCEPTION = TestException.new("kerboom!")
 
@@ -15,11 +15,11 @@ class TestProcessor < Sidekiq1::Test
       @mgr.expect(:options, {:queues => ['default']})
       @mgr.expect(:options, {:queues => ['default']})
       @mgr.expect(:options, {:queues => ['default']})
-      @processor = ::Sidekiq1::Processor.new(@mgr)
+      @processor = ::Sidekiq2::Processor.new(@mgr)
     end
 
     class MockWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       def perform(args)
         raise TEST_EXCEPTION if args.to_s == 'boom'
         args.pop if args.is_a? Array
@@ -28,11 +28,11 @@ class TestProcessor < Sidekiq1::Test
     end
 
     def work(msg, queue='queue:default')
-      Sidekiq1::BasicFetch::UnitOfWork.new(queue, msg)
+      Sidekiq2::BasicFetch::UnitOfWork.new(queue, msg)
     end
 
     it 'processes as expected' do
-      msg = Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
+      msg = Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
       @processor.process(work(msg))
       assert_equal 1, $invokes
     end
@@ -44,7 +44,7 @@ class TestProcessor < Sidekiq1::Test
     end
 
     it 're-raises exceptions after handling' do
-      msg = Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => ['boom'] })
+      msg = Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => ['boom'] })
       re_raise = false
 
       begin
@@ -60,7 +60,7 @@ class TestProcessor < Sidekiq1::Test
 
     it 'does not modify original arguments' do
       msg = { 'class' => MockWorker.to_s, 'args' => [['myarg']] }
-      msgstr = Sidekiq1.dump_json(msg)
+      msgstr = Sidekiq2.dump_json(msg)
       @mgr.expect(:processor_done, nil, [@processor])
       @processor.process(work(msgstr))
       assert_equal [['myarg']], msg['args']
@@ -75,20 +75,20 @@ class TestProcessor < Sidekiq1::Test
       end
 
       before do
-        Sidekiq1.error_handlers << error_handler
+        Sidekiq2.error_handlers << error_handler
       end
 
       after do
-        Sidekiq1.error_handlers.pop
+        Sidekiq2.error_handlers.pop
       end
 
       it 'handles invalid JSON' do
-        ds = Sidekiq1::DeadSet.new
+        ds = Sidekiq2::DeadSet.new
         ds.clear
         job_hash = { 'class' => MockWorker.to_s, 'args' => ['boom'] }
-        msg = Sidekiq1.dump_json(job_hash)
+        msg = Sidekiq2.dump_json(job_hash)
         job = work(msg[0...-2])
-        ds = Sidekiq1::DeadSet.new
+        ds = Sidekiq2::DeadSet.new
         assert_equal 0, ds.size
         begin
           @processor.instance_variable_set(:'@job', job)
@@ -100,7 +100,7 @@ class TestProcessor < Sidekiq1::Test
 
       it 'handles exceptions raised by the job' do
         job_hash = { 'class' => MockWorker.to_s, 'args' => ['boom'], 'jid' => '123987123' }
-        msg = Sidekiq1.dump_json(job_hash)
+        msg = Sidekiq2.dump_json(job_hash)
         job = work(msg)
         begin
           @processor.instance_variable_set(:'@job', job)
@@ -115,7 +115,7 @@ class TestProcessor < Sidekiq1::Test
 
       it 'handles exceptions raised by the reloader' do
         job_hash = { 'class' => MockWorker.to_s, 'args' => ['boom'] }
-        msg = Sidekiq1.dump_json(job_hash)
+        msg = Sidekiq2.dump_json(job_hash)
         @processor.instance_variable_set(:'@reloader', proc { raise TEST_EXCEPTION })
         job = work(msg)
         begin
@@ -165,14 +165,14 @@ class TestProcessor < Sidekiq1::Test
 
       before do
         work.expect(:queue_name, 'queue:default')
-        work.expect(:job, Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => worker_args }))
-        Sidekiq1.server_middleware do |chain|
+        work.expect(:job, Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => worker_args }))
+        Sidekiq2.server_middleware do |chain|
           chain.prepend ExceptionRaisingMiddleware, raise_before_yield, raise_after_yield, skip_job
         end
       end
 
       after do
-        Sidekiq1.server_middleware do |chain|
+        Sidekiq2.server_middleware do |chain|
           chain.remove ExceptionRaisingMiddleware
         end
         work.verify
@@ -256,19 +256,19 @@ class TestProcessor < Sidekiq1::Test
       end
 
       before do
-        Sidekiq1.server_middleware do |chain|
+        Sidekiq2.server_middleware do |chain|
           chain.prepend ArgsMutatingServerMiddleware
         end
-        Sidekiq1.client_middleware do |chain|
+        Sidekiq2.client_middleware do |chain|
           chain.prepend ArgsMutatingClientMiddleware
         end
       end
 
       after do
-        Sidekiq1.server_middleware do |chain|
+        Sidekiq2.server_middleware do |chain|
           chain.remove ArgsMutatingServerMiddleware
         end
-        Sidekiq1.client_middleware do |chain|
+        Sidekiq2.client_middleware do |chain|
           chain.remove ArgsMutatingClientMiddleware
         end
       end
@@ -284,7 +284,7 @@ class TestProcessor < Sidekiq1::Test
           }
 
           @processor.instance_variable_get('@retrier').stub(:attempt_retry, retry_stub) do
-            msg = Sidekiq1.dump_json(job_data)
+            msg = Sidekiq2.dump_json(job_data)
             begin
               @processor.process(work(msg))
               flunk "Expected exception"
@@ -299,22 +299,22 @@ class TestProcessor < Sidekiq1::Test
 
     describe 'stats' do
       before do
-        Sidekiq1.redis {|c| c.flushdb }
+        Sidekiq2.redis {|c| c.flushdb }
       end
 
       describe 'when successful' do
         let(:processed_today_key) { "stat:processed:#{Time.now.utc.strftime("%Y-%m-%d")}" }
 
         def successful_job
-          msg = Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
+          msg = Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
           @mgr.expect(:processor_done, nil, [@processor])
           @processor.process(work(msg))
         end
 
         it 'increments processed stat' do
-          Sidekiq1::Processor::PROCESSED.reset
+          Sidekiq2::Processor::PROCESSED.reset
           successful_job
-          assert_equal 1, Sidekiq1::Processor::PROCESSED.reset
+          assert_equal 1, Sidekiq2::Processor::PROCESSED.reset
         end
       end
 
@@ -322,7 +322,7 @@ class TestProcessor < Sidekiq1::Test
         let(:failed_today_key) { "stat:failed:#{Time.now.utc.strftime("%Y-%m-%d")}" }
 
         def failed_job
-          msg = Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => ['boom'] })
+          msg = Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => ['boom'] })
           begin
             @processor.process(work(msg))
           rescue TestException
@@ -330,9 +330,9 @@ class TestProcessor < Sidekiq1::Test
         end
 
         it 'increments failed stat' do
-          Sidekiq1::Processor::FAILURE.reset
+          Sidekiq2::Processor::FAILURE.reset
           failed_job
-          assert_equal 1, Sidekiq1::Processor::FAILURE.reset
+          assert_equal 1, Sidekiq2::Processor::FAILURE.reset
         end
       end
     end
@@ -351,11 +351,11 @@ class TestProcessor < Sidekiq1::Test
         @mgr.expect(:options, {:queues => ['default'], :job_logger => CustomJobLogger})
         @mgr.expect(:options, {:queues => ['default'], :job_logger => CustomJobLogger})
         @mgr.expect(:options, {:queues => ['default'], :job_logger => CustomJobLogger})
-        @processor = ::Sidekiq1::Processor.new(@mgr)
+        @processor = ::Sidekiq2::Processor.new(@mgr)
       end
 
-      it 'is called instead default Sidekiq1::JobLogger' do
-        msg = Sidekiq1.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
+      it 'is called instead default Sidekiq2::JobLogger' do
+        msg = Sidekiq2.dump_json({ 'class' => MockWorker.to_s, 'args' => ['myarg'] })
         @processor.process(work(msg))
         assert_equal 1, $invokes
         @mgr.verify

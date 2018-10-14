@@ -37,39 +37,39 @@ end
 require 'minitest/autorun'
 
 require 'sidekiq'
-require 'sidekiq1/util'
-Sidekiq1.logger.level = Logger::ERROR
+require 'sidekiq2/util'
+Sidekiq2.logger.level = Logger::ERROR
 
-Sidekiq1::Test = Minitest::Test
+Sidekiq2::Test = Minitest::Test
 
-require 'sidekiq1/redis_connection'
+require 'sidekiq2/redis_connection'
 REDIS_URL = ENV['REDIS_URL'] || 'redis://localhost/15'
-REDIS = Sidekiq1::RedisConnection.create(:url => REDIS_URL)
+REDIS = Sidekiq2::RedisConnection.create(:url => REDIS_URL)
 
-Sidekiq1.configure_client do |config|
+Sidekiq2.configure_client do |config|
   config.redis = { :url => REDIS_URL }
 end
 
 def capture_logging(lvl=Logger::INFO)
-  old = Sidekiq1.logger
+  old = Sidekiq2.logger
   begin
     out = StringIO.new
     logger = Logger.new(out)
     logger.level = lvl
-    Sidekiq1.logger = logger
+    Sidekiq2.logger = logger
     yield
     out.string
   ensure
-    Sidekiq1.logger = old
+    Sidekiq2.logger = old
   end
 end
 
 def with_logging(lvl=Logger::DEBUG)
-  old = Sidekiq1.logger.level
+  old = Sidekiq2.logger.level
   begin
-    Sidekiq1.logger.level = lvl
+    Sidekiq2.logger.level = lvl
     yield
   ensure
-    Sidekiq1.logger.level = old
+    Sidekiq2.logger.level = old
   end
 end

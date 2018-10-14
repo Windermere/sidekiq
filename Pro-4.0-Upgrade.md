@@ -8,7 +8,7 @@ Sidekiq Pro 4.0 is designed to work with Sidekiq 5.0.
   of dead batches and their associated dead jobs.  The success callback
   for a dead batch will never fire unless these jobs are fixed.
 ```ruby
-Sidekiq1::Batch::DeadSet.new.each do |status|
+Sidekiq2::Batch::DeadSet.new.each do |status|
   status.dead? # => true
   status.dead_jobs # => [...]
 end

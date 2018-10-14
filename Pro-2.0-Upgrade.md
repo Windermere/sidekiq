@@ -25,12 +25,12 @@ This feature enables Sidekiq Pro to handle workflow processing of any size
 and complexity!
 
 ```ruby
-a = Sidekiq1::Batch.new
+a = Sidekiq2::Batch.new
 a.on(:success, SomeCallback)
 a.jobs do
   SomeWork.perform_async
 
-  b = Sidekiq1::Batch.new
+  b = Sidekiq2::Batch.new
   b.on(:success, MyCallback)
   b.jobs do
     OtherWork.perform_async
@@ -49,9 +49,9 @@ def perform(*args)
   do_something(args)
 
   if more_work?
-    # Sidekiq1::Worker#batch returns the Batch this job is part of.
+    # Sidekiq2::Worker#batch returns the Batch this job is part of.
     batch.jobs do
-      b = Sidekiq1::Batch.new
+      b = Sidekiq2::Batch.new
       b.on(:success, MyCallback)
       b.jobs do
         OtherWork.perform_async
@@ -111,7 +111,7 @@ end
 ```
 * Activate reliable push:
 ```ruby
-Sidekiq1::Client.reliable_push!
+Sidekiq2::Client.reliable_push!
 ```
 
 More context: [#2130]
@@ -120,7 +120,7 @@ More context: [#2130]
 
 * You must require `sidekiq/pro/notifications` if you want to use the
   existing notification schemes.  I don't recommend using them as the
-  newer-style `Sidekiq1::Batch#on` method is simpler and more flexible.
+  newer-style `Sidekiq2::Batch#on` method is simpler and more flexible.
 * Several classes have been renamed.  Generally these classes are ones
   you should not need to require/use in your own code, e.g. the Batch
   middleware.
@@ -128,7 +128,7 @@ More context: [#2130]
   Pro will set it to the jid of the callback job. [#2178]
 * There's now an official API to iterate all known Batches [#2191]
 ```ruby
-Sidekiq1::BatchSet.new.each {|status| p status.bid }
+Sidekiq2::BatchSet.new.each {|status| p status.bid }
 ```
 * The Web UI now shows the Sidekiq Pro version in the footer. [#1991]
 

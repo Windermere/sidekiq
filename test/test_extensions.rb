@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/api'
+require 'sidekiq2/api'
 require 'active_record'
 require 'action_mailer'
-Sidekiq1::Extensions.enable_delay!
+Sidekiq2::Extensions.enable_delay!
 
-class TestExtensions < Sidekiq1::Test
+class TestExtensions < Sidekiq2::Test
   describe 'sidekiq extensions' do
     before do
-      Sidekiq1.redis = REDIS
-      Sidekiq1.redis {|c| c.flushdb }
+      Sidekiq2.redis = REDIS
+      Sidekiq2.redis {|c| c.flushdb }
     end
 
     class MyModel < ActiveRecord::Base
@@ -19,32 +19,32 @@ class TestExtensions < Sidekiq1::Test
     end
 
     it 'allows delayed execution of ActiveRecord class methods' do
-      assert_equal [], Sidekiq1::Queue.all.map(&:name)
-      q = Sidekiq1::Queue.new
+      assert_equal [], Sidekiq2::Queue.all.map(&:name)
+      q = Sidekiq2::Queue.new
       assert_equal 0, q.size
       MyModel.delay.long_class_method
-      assert_equal ['default'], Sidekiq1::Queue.all.map(&:name)
+      assert_equal ['default'], Sidekiq2::Queue.all.map(&:name)
       assert_equal 1, q.size
     end
 
     it 'uses and stringifies specified options' do
-      assert_equal [], Sidekiq1::Queue.all.map(&:name)
-      q = Sidekiq1::Queue.new('notdefault')
+      assert_equal [], Sidekiq2::Queue.all.map(&:name)
+      q = Sidekiq2::Queue.new('notdefault')
       assert_equal 0, q.size
       MyModel.delay(queue: :notdefault).long_class_method
-      assert_equal ['notdefault'], Sidekiq1::Queue.all.map(&:name)
+      assert_equal ['notdefault'], Sidekiq2::Queue.all.map(&:name)
       assert_equal 1, q.size
     end
 
     it 'allows delayed scheduling of AR class methods' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       assert_equal 0, ss.size
       MyModel.delay_for(5.days).long_class_method
       assert_equal 1, ss.size
     end
 
     it 'allows until delayed scheduling of AR class methods' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       assert_equal 0, ss.size
       MyModel.delay_until(1.day.from_now).long_class_method
       assert_equal 1, ss.size
@@ -57,23 +57,23 @@ class TestExtensions < Sidekiq1::Test
     end
 
     it 'allows delayed delivery of ActionMailer mails' do
-      assert_equal [], Sidekiq1::Queue.all.map(&:name)
-      q = Sidekiq1::Queue.new
+      assert_equal [], Sidekiq2::Queue.all.map(&:name)
+      q = Sidekiq2::Queue.new
       assert_equal 0, q.size
       UserMailer.delay.greetings(1, 2)
-      assert_equal ['default'], Sidekiq1::Queue.all.map(&:name)
+      assert_equal ['default'], Sidekiq2::Queue.all.map(&:name)
       assert_equal 1, q.size
     end
 
     it 'allows delayed scheduling of AM mails' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       assert_equal 0, ss.size
       UserMailer.delay_for(5.days).greetings(1, 2)
       assert_equal 1, ss.size
     end
 
     it 'allows until delay scheduling of AM mails' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       assert_equal 0, ss.size
       UserMailer.delay_until(5.days.from_now).greetings(1, 2)
       assert_equal 1, ss.size
@@ -85,7 +85,7 @@ class TestExtensions < Sidekiq1::Test
     end
 
     it 'allows delay of any ole class method' do
-      q = Sidekiq1::Queue.new
+      q = Sidekiq2::Queue.new
       assert_equal 0, q.size
       SomeClass.delay.doit(Date.today)
       assert_equal 1, q.size
@@ -104,7 +104,7 @@ class TestExtensions < Sidekiq1::Test
     end
 
     it 'allows delay of any module class method' do
-      q = Sidekiq1::Queue.new
+      q = Sidekiq2::Queue.new
       assert_equal 0, q.size
       SomeModule.delay.doit(Date.today)
       assert_equal 1, q.size

@@ -1,41 +1,41 @@
 # frozen_string_literal: true
 require_relative 'helper'
 
-class TestFake < Sidekiq1::Test
+class TestFake < Sidekiq2::Test
   describe 'sidekiq testing' do
     class PerformError < RuntimeError; end
 
     class DirectWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       def perform(a, b)
         a + b
       end
     end
 
     class EnqueuedWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       def perform(a, b)
         a + b
       end
     end
 
     class StoredWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       def perform(error)
         raise PerformError if error
       end
     end
 
     before do
-      require 'sidekiq1/testing'
-      Sidekiq1::Testing.fake!
+      require 'sidekiq2/testing'
+      Sidekiq2::Testing.fake!
       EnqueuedWorker.jobs.clear
       DirectWorker.jobs.clear
     end
 
     after do
-      Sidekiq1::Testing.disable!
-      Sidekiq1::Queues.clear_all
+      Sidekiq2::Testing.disable!
+      Sidekiq2::Queues.clear_all
     end
 
     it 'stubs the async call' do
@@ -60,13 +60,13 @@ class TestFake < Sidekiq1::Test
       end
 
       before do
-        Sidekiq1::Extensions.enable_delay!
+        Sidekiq2::Extensions.enable_delay!
       end
 
       it 'stubs the delay call on mailers' do
-        assert_equal 0, Sidekiq1::Extensions::DelayedMailer.jobs.size
+        assert_equal 0, Sidekiq2::Extensions::DelayedMailer.jobs.size
         FooMailer.delay.bar('hello!')
-        assert_equal 1, Sidekiq1::Extensions::DelayedMailer.jobs.size
+        assert_equal 1, Sidekiq2::Extensions::DelayedMailer.jobs.size
       end
 
       class Something
@@ -75,22 +75,22 @@ class TestFake < Sidekiq1::Test
       end
 
       it 'stubs the delay call on classes' do
-        assert_equal 0, Sidekiq1::Extensions::DelayedClass.jobs.size
+        assert_equal 0, Sidekiq2::Extensions::DelayedClass.jobs.size
         Something.delay.foo(Date.today)
-        assert_equal 1, Sidekiq1::Extensions::DelayedClass.jobs.size
+        assert_equal 1, Sidekiq2::Extensions::DelayedClass.jobs.size
       end
     end
 
     it 'stubs the enqueue call' do
       assert_equal 0, EnqueuedWorker.jobs.size
-      assert Sidekiq1::Client.enqueue(EnqueuedWorker, 1, 2)
+      assert Sidekiq2::Client.enqueue(EnqueuedWorker, 1, 2)
       assert_equal 1, EnqueuedWorker.jobs.size
     end
 
     it 'stubs the enqueue_to call' do
       assert_equal 0, EnqueuedWorker.jobs.size
-      assert Sidekiq1::Client.enqueue_to('someq', EnqueuedWorker, 1, 2)
-      assert_equal 1, Sidekiq1::Queues['someq'].size
+      assert Sidekiq2::Client.enqueue_to('someq', EnqueuedWorker, 1, 2)
+      assert_equal 1, Sidekiq2::Queues['someq'].size
     end
 
     it 'executes all stored jobs' do
@@ -105,7 +105,7 @@ class TestFake < Sidekiq1::Test
     end
 
     class SpecificJidWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_class_attribute :count
       self.count = 0
       def perform(worker_jid)
@@ -154,13 +154,13 @@ class TestFake < Sidekiq1::Test
 
     it 'perform_one raise error upon empty queue' do
       DirectWorker.clear
-      assert_raises Sidekiq1::EmptyQueueError do
+      assert_raises Sidekiq2::EmptyQueueError do
         DirectWorker.perform_one
       end
     end
 
     class FirstWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_class_attribute :count
       self.count = 0
       def perform
@@ -169,7 +169,7 @@ class TestFake < Sidekiq1::Test
     end
 
     class SecondWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_class_attribute :count
       self.count = 0
       def perform
@@ -178,7 +178,7 @@ class TestFake < Sidekiq1::Test
     end
 
     class ThirdWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_class_attribute :count
       def perform
         FirstWorker.perform_async
@@ -187,7 +187,7 @@ class TestFake < Sidekiq1::Test
     end
 
     it 'clears jobs across all workers' do
-      Sidekiq1::Worker.jobs.clear
+      Sidekiq2::Worker.jobs.clear
       FirstWorker.count = 0
       SecondWorker.count = 0
 
@@ -200,7 +200,7 @@ class TestFake < Sidekiq1::Test
       assert_equal 1, FirstWorker.jobs.size
       assert_equal 1, SecondWorker.jobs.size
 
-      Sidekiq1::Worker.clear_all
+      Sidekiq2::Worker.clear_all
 
       assert_equal 0, FirstWorker.jobs.size
       assert_equal 0, SecondWorker.jobs.size
@@ -210,7 +210,7 @@ class TestFake < Sidekiq1::Test
     end
 
     it 'drains jobs across all workers' do
-      Sidekiq1::Worker.jobs.clear
+      Sidekiq2::Worker.jobs.clear
       FirstWorker.count = 0
       SecondWorker.count = 0
 
@@ -226,7 +226,7 @@ class TestFake < Sidekiq1::Test
       assert_equal 1, FirstWorker.jobs.size
       assert_equal 1, SecondWorker.jobs.size
 
-      Sidekiq1::Worker.drain_all
+      Sidekiq2::Worker.drain_all
 
       assert_equal 0, FirstWorker.jobs.size
       assert_equal 0, SecondWorker.jobs.size
@@ -236,7 +236,7 @@ class TestFake < Sidekiq1::Test
     end
 
     it 'drains jobs across all workers even when workers create new jobs' do
-      Sidekiq1::Worker.jobs.clear
+      Sidekiq2::Worker.jobs.clear
       FirstWorker.count = 0
       SecondWorker.count = 0
 
@@ -249,7 +249,7 @@ class TestFake < Sidekiq1::Test
 
       assert_equal 1, ThirdWorker.jobs.size
 
-      Sidekiq1::Worker.drain_all
+      Sidekiq2::Worker.drain_all
 
       assert_equal 0, ThirdWorker.jobs.size
 
@@ -258,12 +258,12 @@ class TestFake < Sidekiq1::Test
     end
 
     it 'drains jobs of workers with symbolized queue names' do
-      Sidekiq1::Worker.jobs.clear
+      Sidekiq2::Worker.jobs.clear
 
       AltQueueWorker.perform_async(5,6)
       assert_equal 1, AltQueueWorker.jobs.size
 
-      Sidekiq1::Worker.drain_all
+      Sidekiq2::Worker.drain_all
       assert_equal 0, AltQueueWorker.jobs.size
     end
 
@@ -274,24 +274,24 @@ class TestFake < Sidekiq1::Test
 
   describe 'queue testing' do
     before do
-      require 'sidekiq1/testing'
-      Sidekiq1::Testing.fake!
+      require 'sidekiq2/testing'
+      Sidekiq2::Testing.fake!
     end
 
     after do
-      Sidekiq1::Testing.disable!
-      Sidekiq1::Queues.clear_all
+      Sidekiq2::Testing.disable!
+      Sidekiq2::Queues.clear_all
     end
 
     class QueueWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       def perform(a, b)
         a + b
       end
     end
 
     class AltQueueWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_options queue: :alt
       def perform(a, b)
         a + b
@@ -299,41 +299,41 @@ class TestFake < Sidekiq1::Test
     end
 
     it 'finds enqueued jobs' do
-      assert_equal 0, Sidekiq1::Queues["default"].size
+      assert_equal 0, Sidekiq2::Queues["default"].size
 
       QueueWorker.perform_async(1, 2)
       QueueWorker.perform_async(1, 2)
       AltQueueWorker.perform_async(1, 2)
 
-      assert_equal 2, Sidekiq1::Queues["default"].size
-      assert_equal [1, 2], Sidekiq1::Queues["default"].first["args"]
+      assert_equal 2, Sidekiq2::Queues["default"].size
+      assert_equal [1, 2], Sidekiq2::Queues["default"].first["args"]
 
-      assert_equal 1, Sidekiq1::Queues["alt"].size
+      assert_equal 1, Sidekiq2::Queues["alt"].size
     end
 
     it 'clears out all queues' do
-      assert_equal 0, Sidekiq1::Queues["default"].size
+      assert_equal 0, Sidekiq2::Queues["default"].size
 
       QueueWorker.perform_async(1, 2)
       QueueWorker.perform_async(1, 2)
       AltQueueWorker.perform_async(1, 2)
 
-      Sidekiq1::Queues.clear_all
+      Sidekiq2::Queues.clear_all
 
-      assert_equal 0, Sidekiq1::Queues["default"].size
+      assert_equal 0, Sidekiq2::Queues["default"].size
       assert_equal 0, QueueWorker.jobs.size
-      assert_equal 0, Sidekiq1::Queues["alt"].size
+      assert_equal 0, Sidekiq2::Queues["alt"].size
       assert_equal 0, AltQueueWorker.jobs.size
     end
 
     it 'finds jobs enqueued by client' do
-      Sidekiq1::Client.push(
+      Sidekiq2::Client.push(
         'class' => 'NonExistentWorker',
         'queue' => 'missing',
         'args' => [1]
       )
 
-      assert_equal 1, Sidekiq1::Queues["missing"].size
+      assert_equal 1, Sidekiq2::Queues["missing"].size
     end
 
     it 'respects underlying array changes' do

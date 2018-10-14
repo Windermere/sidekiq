@@ -1,11 +1,11 @@
 # encoding: utf-8
 require_relative 'helper'
-require 'sidekiq1/job_retry'
+require 'sidekiq2/job_retry'
 
-class TestRetryExhausted < Sidekiq1::Test
+class TestRetryExhausted < Sidekiq2::Test
   describe 'sidekiq_retries_exhausted' do
     class NewWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
 
       sidekiq_class_attribute :exhausted_called, :exhausted_job, :exhausted_exception
 
@@ -17,7 +17,7 @@ class TestRetryExhausted < Sidekiq1::Test
     end
 
     class OldWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
 
       sidekiq_class_attribute :exhausted_called, :exhausted_job, :exhausted_exception
 
@@ -52,7 +52,7 @@ class TestRetryExhausted < Sidekiq1::Test
     end
 
     def handler(options={})
-      @handler ||= Sidekiq1::JobRetry.new(options)
+      @handler ||= Sidekiq2::JobRetry.new(options)
     end
 
     def job(options={})
@@ -125,12 +125,12 @@ class TestRetryExhausted < Sidekiq1::Test
     it 'allows a global default handler' do
       begin
         class Foobar
-          include Sidekiq1::Worker
+          include Sidekiq2::Worker
         end
 
         exhausted_job = nil
         exhausted_exception = nil
-        Sidekiq1.default_retries_exhausted = lambda do |job, ex|
+        Sidekiq2.default_retries_exhausted = lambda do |job, ex|
           exhausted_job = job
           exhausted_exception = ex
         end
@@ -145,20 +145,20 @@ class TestRetryExhausted < Sidekiq1::Test
         assert exhausted_job
         assert_equal raised_error, exhausted_exception
       ensure
-        Sidekiq1.default_retries_exhausted = nil
+        Sidekiq2.default_retries_exhausted = nil
       end
     end
 
     it 'allows global failure handlers' do
       begin
         class Foobar
-          include Sidekiq1::Worker
+          include Sidekiq2::Worker
         end
 
         exhausted_job = nil
         exhausted_exception = nil
-        Sidekiq1.death_handlers.clear
-        Sidekiq1.death_handlers << proc do |job, ex|
+        Sidekiq2.death_handlers.clear
+        Sidekiq2.death_handlers << proc do |job, ex|
           exhausted_job = job
           exhausted_exception = ex
         end
@@ -173,7 +173,7 @@ class TestRetryExhausted < Sidekiq1::Test
         assert exhausted_job
         assert_equal raised_error, exhausted_exception
       ensure
-        Sidekiq1.death_handlers.clear
+        Sidekiq2.death_handlers.clear
       end
     end
   end

@@ -79,7 +79,7 @@
       <th><%= t('Started') %></th>
     </thead>
     <% workers.each do |process, thread, msg| %>
-      <% job = Sidekiq1::Job.new(msg['payload']) %>
+      <% job = Sidekiq2::Job.new(msg['payload']) %>
       <tr>
         <td><%= process %></td>
         <td><%= thread %></td>

@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/scheduled'
+require 'sidekiq2/scheduled'
 
-class TestScheduling < Sidekiq1::Test
+class TestScheduling < Sidekiq2::Test
   describe 'middleware' do
     class ScheduledWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
       sidekiq_options :queue => :custom_queue
       def perform(x)
       end
@@ -17,7 +17,7 @@ class TestScheduling < Sidekiq1::Test
     end
 
     it 'schedules jobs' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       ss.clear
 
       assert_equal 0, ss.size
@@ -31,13 +31,13 @@ class TestScheduling < Sidekiq1::Test
       assert ScheduledWorker.perform_in(5.days.from_now, 'mike')
       assert_equal 3, ss.size
 
-      q = Sidekiq1::Queue.new("custom_queue")
+      q = Sidekiq2::Queue.new("custom_queue")
       qs = q.size
       assert ScheduledWorker.perform_in(-300, 'mike')
       assert_equal 3, ss.size
       assert_equal qs+1, q.size
 
-      assert Sidekiq1::Client.push_bulk('class' => ScheduledWorker, 'args' => [['mike'], ['mike']], 'at' => 600)
+      assert Sidekiq2::Client.push_bulk('class' => ScheduledWorker, 'args' => [['mike'], ['mike']], 'at' => 600)
       assert_equal 5, ss.size
 
       assert ScheduledWorker.perform_in(TimeDuck.new, 'samwise')
@@ -45,7 +45,7 @@ class TestScheduling < Sidekiq1::Test
     end
 
     it 'removes the enqueued_at field when scheduling' do
-      ss = Sidekiq1::ScheduledSet.new
+      ss = Sidekiq2::ScheduledSet.new
       ss.clear
 
       assert ScheduledWorker.perform_in(1.month, 'mike')

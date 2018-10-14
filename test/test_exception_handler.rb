@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/exception_handler'
+require 'sidekiq2/exception_handler'
 require 'stringio'
 require 'logger'
 
@@ -8,7 +8,7 @@ ExceptionHandlerTestException = Class.new(StandardError)
 TEST_EXCEPTION = ExceptionHandlerTestException.new("Something didn't work!")
 
 class Component
-  include Sidekiq1::ExceptionHandler
+  include Sidekiq2::ExceptionHandler
 
   def invoke_exception(args)
     raise TEST_EXCEPTION
@@ -17,19 +17,19 @@ class Component
   end
 end
 
-class TestExceptionHandler < Sidekiq1::Test
+class TestExceptionHandler < Sidekiq2::Test
   describe "with mock logger" do
     before do
-      @old_logger = Sidekiq1.logger
+      @old_logger = Sidekiq2.logger
       @str_logger = StringIO.new
-      Sidekiq1.logger = Logger.new(@str_logger)
+      Sidekiq2.logger = Logger.new(@str_logger)
     end
 
     after do
-      Sidekiq1.logger = @old_logger
+      Sidekiq2.logger = @old_logger
     end
 
-    it "logs the exception to Sidekiq1.logger" do
+    it "logs the exception to Sidekiq2.logger" do
       Component.new.invoke_exception(:a => 1)
       @str_logger.rewind
       log = @str_logger.readlines

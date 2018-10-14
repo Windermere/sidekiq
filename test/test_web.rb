@@ -1,15 +1,15 @@
 # encoding: utf-8
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/web'
+require 'sidekiq2/web'
 require 'rack/test'
 
-class TestWeb < Sidekiq1::Test
+class TestWeb < Sidekiq2::Test
   describe 'sidekiq web' do
     include Rack::Test::Methods
 
     def app
-      Sidekiq1::Web
+      Sidekiq2::Web
     end
 
     def job_params(job, score)
@@ -17,11 +17,11 @@ class TestWeb < Sidekiq1::Test
     end
 
     before do
-      Sidekiq1.redis {|c| c.flushdb }
+      Sidekiq2.redis {|c| c.flushdb }
     end
 
     class WebWorker
-      include Sidekiq1::Worker
+      include Sidekiq2::Worker
 
       def perform(a, b)
         a + b
@@ -66,15 +66,15 @@ class TestWeb < Sidekiq1::Test
     describe 'busy' do
 
       it 'can display workers' do
-        Sidekiq1.redis do |conn|
+        Sidekiq2.redis do |conn|
           conn.incr('busy')
           conn.sadd('processes', 'foo:1234')
-          conn.hmset('foo:1234', 'info', Sidekiq1.dump_json('hostname' => 'foo', 'started_at' => Time.now.to_f, "queues" => []), 'at', Time.now.to_f, 'busy', 4)
+          conn.hmset('foo:1234', 'info', Sidekiq2.dump_json('hostname' => 'foo', 'started_at' => Time.now.to_f, "queues" => []), 'at', Time.now.to_f, 'busy', 4)
           identity = 'foo:1234:workers'
           hash = {:queue => 'critical', :payload => { 'class' => WebWorker.name, 'args' => [1,'abc'] }, :run_at => Time.now.to_i }
-          conn.hmset(identity, 1001, Sidekiq1.dump_json(hash))
+          conn.hmset(identity, 1001, Sidekiq2.dump_json(hash))
         end
-        assert_equal ['1001'], Sidekiq1::Workers.new.map { |pid, tid, data| tid }
+        assert_equal ['1001'], Sidekiq2::Workers.new.map { |pid, tid, data| tid }
 
         get '/busy'
         assert_equal 200, last_response.status
@@ -87,25 +87,25 @@ class TestWeb < Sidekiq1::Test
         identity = 'identity'
         signals_key = "#{identity}-signals"
 
-        assert_nil Sidekiq1.redis { |c| c.lpop signals_key }
+        assert_nil Sidekiq2.redis { |c| c.lpop signals_key }
         post '/busy', 'quiet' => '1', 'identity' => identity
         assert_equal 302, last_response.status
-        assert_equal 'TSTP', Sidekiq1.redis { |c| c.lpop signals_key }
+        assert_equal 'TSTP', Sidekiq2.redis { |c| c.lpop signals_key }
       end
 
       it 'can stop a process' do
         identity = 'identity'
         signals_key = "#{identity}-signals"
 
-        assert_nil Sidekiq1.redis { |c| c.lpop signals_key }
+        assert_nil Sidekiq2.redis { |c| c.lpop signals_key }
         post '/busy', 'stop' => '1', 'identity' => identity
         assert_equal 302, last_response.status
-        assert_equal 'TERM', Sidekiq1.redis { |c| c.lpop signals_key }
+        assert_equal 'TERM', Sidekiq2.redis { |c| c.lpop signals_key }
       end
     end
 
     it 'can display queues' do
-      assert Sidekiq1::Client.push('queue' => :foo, 'class' => WebWorker, 'args' => [1, 3])
+      assert Sidekiq2::Client.push('queue' => :foo, 'class' => WebWorker, 'args' => [1, 3])
 
       get '/queues'
       assert_equal 200, last_response.status
@@ -119,7 +119,7 @@ class TestWeb < Sidekiq1::Test
     end
 
     it 'can delete a queue' do
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         conn.rpush('queue:foo', '{\"args\":[]}')
         conn.sadd('queues', 'foo')
       end
@@ -130,14 +130,14 @@ class TestWeb < Sidekiq1::Test
       post '/queues/foo'
       assert_equal 302, last_response.status
 
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         refute conn.smembers('queues').include?('foo')
         refute conn.exists('queue:foo')
       end
     end
 
     it 'can delete a job' do
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         conn.rpush('queue:foo', "{\"args\":[]}")
         conn.rpush('queue:foo', "{\"foo\":\"bar\",\"args\":[]}")
         conn.rpush('queue:foo', "{\"foo2\":\"bar2\",\"args\":[]}")
@@ -149,7 +149,7 @@ class TestWeb < Sidekiq1::Test
       post '/queues/foo/delete', key_val: "{\"foo\":\"bar\"}"
       assert_equal 302, last_response.status
 
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         refute conn.lrange('queue:foo', 0, -1).include?("{\"foo\":\"bar\"}")
       end
     end
@@ -197,7 +197,7 @@ class TestWeb < Sidekiq1::Test
       3.times { add_retry }
 
       post "/retries/all/delete", 'delete' => 'Delete'
-      assert_equal 0, Sidekiq1::RetrySet.new.size
+      assert_equal 0, Sidekiq2::RetrySet.new.size
       assert_equal 302, last_response.status
       assert_equal 'http://example.org/retries', last_response.header['Location']
     end
@@ -276,7 +276,7 @@ class TestWeb < Sidekiq1::Test
 
     it 'can delete scheduled' do
       params = add_scheduled
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         assert_equal 1, conn.zcard('schedule')
         post '/scheduled', 'key' => [job_params(*params)], 'delete' => 'Delete'
         assert_equal 302, last_response.status
@@ -286,9 +286,9 @@ class TestWeb < Sidekiq1::Test
     end
 
     it "can move scheduled to default queue" do
-      q = Sidekiq1::Queue.new
+      q = Sidekiq2::Queue.new
       params = add_scheduled
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         assert_equal 1, conn.zcard('schedule')
         assert_equal 0, q.size
         post '/scheduled', 'key' => [job_params(*params)], 'add_to_queue' => 'AddToQueue'
@@ -309,7 +309,7 @@ class TestWeb < Sidekiq1::Test
       post "/retries/all/retry", 'retry' => 'Retry'
       assert_equal 302, last_response.status
       assert_equal 'http://example.org/retries', last_response.header['Location']
-      assert_equal 2, Sidekiq1::Queue.new("default").size
+      assert_equal 2, Sidekiq2::Queue.new("default").size
 
       get '/queues/default'
       assert_equal 200, last_response.status
@@ -336,13 +336,13 @@ class TestWeb < Sidekiq1::Test
       assert !last_response.body.include?( "args\"><a>hello</a><" )
 
       # on /workers page
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         pro = 'foo:1234'
         conn.sadd('processes', pro)
-        conn.hmset(pro, 'info', Sidekiq1.dump_json('started_at' => Time.now.to_f, 'labels' => ['frumduz'], 'queues' =>[]), 'busy', 1, 'beat', Time.now.to_f)
+        conn.hmset(pro, 'info', Sidekiq2.dump_json('started_at' => Time.now.to_f, 'labels' => ['frumduz'], 'queues' =>[]), 'busy', 1, 'beat', Time.now.to_f)
         identity = "#{pro}:workers"
         hash = {:queue => 'critical', :payload => { 'class' => "FailWorker", 'args' => ["<a>hello</a>"] }, :run_at => Time.now.to_i }
-        conn.hmset(identity, 100001, Sidekiq1.dump_json(hash))
+        conn.hmset(identity, 100001, Sidekiq2.dump_json(hash))
         conn.incr('busy')
       end
 
@@ -366,13 +366,13 @@ class TestWeb < Sidekiq1::Test
 
     it 'can show user defined tab' do
       begin
-        Sidekiq1::Web.tabs['Custom Tab'] = '/custom'
+        Sidekiq2::Web.tabs['Custom Tab'] = '/custom'
 
         get '/'
         assert_match 'Custom Tab', last_response.body
 
       ensure
-        Sidekiq1::Web.tabs.delete 'Custom Tab'
+        Sidekiq2::Web.tabs.delete 'Custom Tab'
       end
     end
 
@@ -383,17 +383,17 @@ class TestWeb < Sidekiq1::Test
 
     describe 'custom locales' do
       before do
-        Sidekiq1::Web.settings.locales << File.join(File.dirname(__FILE__), "fixtures")
-        Sidekiq1::Web.tabs['Custom Tab'] = '/custom'
-        Sidekiq1::WebApplication.get('/custom') do
+        Sidekiq2::Web.settings.locales << File.join(File.dirname(__FILE__), "fixtures")
+        Sidekiq2::Web.tabs['Custom Tab'] = '/custom'
+        Sidekiq2::WebApplication.get('/custom') do
           clear_caches # ugly hack since I can't figure out how to access WebHelpers outside of this context
           t('translated_text')
         end
       end
 
       after do
-        Sidekiq1::Web.tabs.delete 'Custom Tab'
-        Sidekiq1::Web.settings.locales.pop
+        Sidekiq2::Web.tabs.delete 'Custom Tab'
+        Sidekiq2::Web.settings.locales.pop
       end
 
       it 'can show user defined tab with custom locales' do
@@ -412,10 +412,10 @@ class TestWeb < Sidekiq1::Test
     end
 
     describe 'stats' do
-      include Sidekiq1::Util
+      include Sidekiq2::Util
 
       before do
-        Sidekiq1.redis do |conn|
+        Sidekiq2.redis do |conn|
           conn.set("stat:processed", 5)
           conn.set("stat:failed", 2)
           conn.sadd("queues", "default")
@@ -427,7 +427,7 @@ class TestWeb < Sidekiq1::Test
 
       it 'works' do
         get '/stats'
-        @response = Sidekiq1.load_json(last_response.body)
+        @response = Sidekiq2.load_json(last_response.body)
 
         assert_equal 200, last_response.status
         assert_includes @response.keys, "sidekiq"
@@ -450,7 +450,7 @@ class TestWeb < Sidekiq1::Test
 
     describe 'bad JSON' do
       it 'displays without error' do
-        s = Sidekiq1::DeadSet.new
+        s = Sidekiq2::DeadSet.new
         (_, score) = kill_bad
         assert_equal 1, s.size
 
@@ -467,10 +467,10 @@ class TestWeb < Sidekiq1::Test
     end
 
     describe 'stats/queues' do
-      include Sidekiq1::Util
+      include Sidekiq2::Util
 
       before do
-        Sidekiq1.redis do |conn|
+        Sidekiq2.redis do |conn|
           conn.set("stat:processed", 5)
           conn.set("stat:failed", 2)
           conn.sadd("queues", "default")
@@ -481,7 +481,7 @@ class TestWeb < Sidekiq1::Test
         4.times { add_worker }
 
         get '/stats/queues'
-        @response = Sidekiq1.load_json(last_response.body)
+        @response = Sidekiq2.load_json(last_response.body)
       end
 
       it 'reports the queue depth' do
@@ -506,9 +506,9 @@ class TestWeb < Sidekiq1::Test
       it 'can delete all dead' do
         3.times { add_dead }
 
-        assert_equal 3, Sidekiq1::DeadSet.new.size
+        assert_equal 3, Sidekiq2::DeadSet.new.size
         post "/morgue/all/delete", 'delete' => 'Delete'
-        assert_equal 0, Sidekiq1::DeadSet.new.size
+        assert_equal 0, Sidekiq2::DeadSet.new.size
         assert_equal 302, last_response.status
         assert_equal 'http://example.org/morgue', last_response.header['Location']
       end
@@ -524,12 +524,12 @@ class TestWeb < Sidekiq1::Test
         post "/morgue/#{job_params(*params)}", 'retry' => 'Retry'
         assert_equal 302, last_response.status
         assert_equal 'http://example.org/morgue', last_response.header['Location']
-        assert_equal 0, Sidekiq1::DeadSet.new.size
+        assert_equal 0, Sidekiq2::DeadSet.new.size
 
         params = add_dead('jid-with-hyphen')
         post "/morgue/#{job_params(*params)}", 'retry' => 'Retry'
         assert_equal 302, last_response.status
-        assert_equal 0, Sidekiq1::DeadSet.new.size
+        assert_equal 0, Sidekiq2::DeadSet.new.size
 
         get '/queues/foo'
         assert_equal 200, last_response.status
@@ -548,8 +548,8 @@ class TestWeb < Sidekiq1::Test
       msg = { 'class' => 'HardWorker',
               'args' => ['bob', 1, Time.now.to_f],
               'jid' => SecureRandom.hex(12) }
-      Sidekiq1.redis do |conn|
-        conn.zadd('schedule', score, Sidekiq1.dump_json(msg))
+      Sidekiq2.redis do |conn|
+        conn.zadd('schedule', score, Sidekiq2.dump_json(msg))
       end
       [msg, score]
     end
@@ -564,8 +564,8 @@ class TestWeb < Sidekiq1::Test
               'failed_at' => Time.now.to_f,
               'jid' => SecureRandom.hex(12) }
       score = Time.now.to_f
-      Sidekiq1.redis do |conn|
-        conn.zadd('retry', score, Sidekiq1.dump_json(msg))
+      Sidekiq2.redis do |conn|
+        conn.zadd('retry', score, Sidekiq2.dump_json(msg))
       end
 
       [msg, score]
@@ -581,8 +581,8 @@ class TestWeb < Sidekiq1::Test
               'failed_at' => Time.now.utc,
               'jid' => jid }
       score = Time.now.to_f
-      Sidekiq1.redis do |conn|
-        conn.zadd('dead', score, Sidekiq1.dump_json(msg))
+      Sidekiq2.redis do |conn|
+        conn.zadd('dead', score, Sidekiq2.dump_json(msg))
       end
       [msg, score]
     end
@@ -590,7 +590,7 @@ class TestWeb < Sidekiq1::Test
     def kill_bad
       job = "{ something bad }"
       score = Time.now.to_f
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         conn.zadd('dead', score, job)
       end
       [job, score]
@@ -606,8 +606,8 @@ class TestWeb < Sidekiq1::Test
               'failed_at' => Time.now.to_f,
               'jid' => SecureRandom.hex(12) }
       score = Time.now.to_f
-      Sidekiq1.redis do |conn|
-        conn.zadd('retry', score, Sidekiq1.dump_json(msg))
+      Sidekiq2.redis do |conn|
+        conn.zadd('retry', score, Sidekiq2.dump_json(msg))
       end
 
       [msg, score]
@@ -616,10 +616,10 @@ class TestWeb < Sidekiq1::Test
     def add_worker
       key = "#{hostname}:#{$$}"
       msg = "{\"queue\":\"default\",\"payload\":{\"retry\":true,\"queue\":\"default\",\"timeout\":20,\"backtrace\":5,\"class\":\"HardWorker\",\"args\":[\"bob\",10,5],\"jid\":\"2b5ad2b016f5e063a1c62872\"},\"run_at\":1361208995}"
-      Sidekiq1.redis do |conn|
+      Sidekiq2.redis do |conn|
         conn.multi do
           conn.sadd("processes", key)
-          conn.hmset(key, 'info', Sidekiq1.dump_json('hostname' => 'foo', 'started_at' => Time.now.to_f, "queues" => []), 'at', Time.now.to_f, 'busy', 4)
+          conn.hmset(key, 'info', Sidekiq2.dump_json('hostname' => 'foo', 'started_at' => Time.now.to_f, "queues" => []), 'at', Time.now.to_f, 'busy', 4)
           conn.hmset("#{key}:workers", Time.now.to_f, msg)
         end
       end
@@ -630,7 +630,7 @@ class TestWeb < Sidekiq1::Test
     include Rack::Test::Methods
 
     def app
-      app = Sidekiq1::Web.new
+      app = Sidekiq2::Web.new
       app.use(Rack::Auth::Basic) { |user, pass| user == "a" && pass == "b" }
 
       app
@@ -656,7 +656,7 @@ class TestWeb < Sidekiq1::Test
     include Rack::Test::Methods
 
     def app
-      app = Sidekiq1::Web.new
+      app = Sidekiq2::Web.new
 
       app.use Rack::Session::Cookie, secret: 'v3rys3cr31', host: 'nicehost.org'
 
@@ -678,7 +678,7 @@ class TestWeb < Sidekiq1::Test
 
     describe 'using #disable' do
       def app
-        app = Sidekiq1::Web.new
+        app = Sidekiq2::Web.new
         app.disable(:sessions)
         app
       end
@@ -691,7 +691,7 @@ class TestWeb < Sidekiq1::Test
 
     describe 'using #set with false argument' do
       def app
-        app = Sidekiq1::Web.new
+        app = Sidekiq2::Web.new
         app.set(:sessions, false)
         app
       end
@@ -704,7 +704,7 @@ class TestWeb < Sidekiq1::Test
 
     describe 'using #set with an hash' do
       def app
-        app = Sidekiq1::Web.new
+        app = Sidekiq2::Web.new
         app.set(:sessions, { domain: :all })
         app
       end
@@ -719,7 +719,7 @@ class TestWeb < Sidekiq1::Test
 
     describe 'using #enable' do
       def app
-        app = Sidekiq1::Web.new
+        app = Sidekiq2::Web.new
         app.enable(:sessions)
         app
       end

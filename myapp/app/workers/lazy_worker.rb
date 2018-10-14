@@ -1,5 +1,5 @@
 class LazyWorker
-  include Sidekiq1::Worker
+  include Sidekiq2::Worker
 
   def perform
   end

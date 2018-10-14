@@ -1,7 +1,7 @@
-Sidekiq1.configure_client do |config|
+Sidekiq2.configure_client do |config|
   config.redis = { :size => 2 }
 end
-Sidekiq1.configure_server do |config|
+Sidekiq2.configure_server do |config|
   config.on(:startup) { }
   config.on(:quiet) { }
   config.on(:shutdown) do
@@ -17,14 +17,14 @@ Sidekiq1.configure_server do |config|
 end
 
 class EmptyWorker
-  include Sidekiq1::Worker
+  include Sidekiq2::Worker
 
   def perform
   end
 end
 
 class TimedWorker
-  include Sidekiq1::Worker
+  include Sidekiq2::Worker
 
   def perform(start)
     now = Time.now.to_f
@@ -32,4 +32,4 @@ class TimedWorker
   end
 end
 
-Sidekiq1::Extensions.enable_delay!
+Sidekiq2::Extensions.enable_delay!

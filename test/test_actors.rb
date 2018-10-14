@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq1/cli'
-require 'sidekiq1/fetch'
-require 'sidekiq1/scheduled'
-require 'sidekiq1/processor'
+require 'sidekiq2/cli'
+require 'sidekiq2/fetch'
+require 'sidekiq2/scheduled'
+require 'sidekiq2/processor'
 
-class TestActors < Sidekiq1::Test
+class TestActors < Sidekiq2::Test
   class JoeWorker
-    include Sidekiq1::Worker
+    include Sidekiq2::Worker
     def perform(slp)
       raise "boom" if slp == "boom"
       sleep(slp) if slp > 0
@@ -17,19 +17,19 @@ class TestActors < Sidekiq1::Test
 
   describe 'threads' do
     before do
-      Sidekiq1.redis {|c| c.flushdb}
+      Sidekiq2.redis {|c| c.flushdb}
     end
 
     describe 'scheduler' do
       it 'can start and stop' do
-        f = Sidekiq1::Scheduled::Poller.new
+        f = Sidekiq2::Scheduled::Poller.new
         f.start
         f.terminate
       end
 
       it 'can schedule' do
-        ss = Sidekiq1::ScheduledSet.new
-        q = Sidekiq1::Queue.new
+        ss = Sidekiq2::ScheduledSet.new
+        q = Sidekiq2::Queue.new
 
         JoeWorker.perform_in(0.01, 0)
 
@@ -37,7 +37,7 @@ class TestActors < Sidekiq1::Test
         assert_equal 1, ss.size
 
         sleep 0.015
-        s = Sidekiq1::Scheduled::Poller.new
+        s = Sidekiq2::Scheduled::Poller.new
         s.enqueue
         assert_equal 1, q.size
         assert_equal 0, ss.size
@@ -51,7 +51,7 @@ class TestActors < Sidekiq1::Test
       end
 
       it 'can start and stop' do
-        f = Sidekiq1::Processor.new(Mgr.new)
+        f = Sidekiq2::Processor.new(Mgr.new)
         f.terminate
       end
 
@@ -82,7 +82,7 @@ class TestActors < Sidekiq1::Test
       it 'can process' do
         mgr = Mgr.new
 
-        p = Sidekiq1::Processor.new(mgr)
+        p = Sidekiq2::Processor.new(mgr)
         JoeWorker.perform_async(0)
 
         a = $count
@@ -94,9 +94,9 @@ class TestActors < Sidekiq1::Test
       it 'deals with errors' do
         mgr = Mgr.new
 
-        p = Sidekiq1::Processor.new(mgr)
+        p = Sidekiq2::Processor.new(mgr)
         JoeWorker.perform_async("boom")
-        q = Sidekiq1::Queue.new
+        q = Sidekiq2::Queue.new
         assert_equal 1, q.size
 
         a = $count
@@ -117,9 +117,9 @@ class TestActors < Sidekiq1::Test
       it 'gracefully kills' do
         mgr = Mgr.new
 
-        p = Sidekiq1::Processor.new(mgr)
+        p = Sidekiq2::Processor.new(mgr)
         JoeWorker.perform_async(1)
-        q = Sidekiq1::Queue.new
+        q = Sidekiq2::Queue.new
         assert_equal 1, q.size
 
         a = $count

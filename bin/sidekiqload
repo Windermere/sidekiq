@@ -10,7 +10,7 @@ Bundler.require(:default)
 require_relative '../lib/sidekiq/cli'
 require_relative '../lib/sidekiq/launcher'
 
-include Sidekiq1::Util
+include Sidekiq2::Util
 
 Sidekiq.configure_server do |config|
   #config.options[:concurrency] = 1
@@ -18,11 +18,11 @@ Sidekiq.configure_server do |config|
   config.options[:queues] << 'default'
   config.logger.level = Logger::ERROR
   config.average_scheduled_poll_interval = 2
-  config.reliable! if defined?(Sidekiq1::Pro)
+  config.reliable! if defined?(Sidekiq2::Pro)
 end
 
 class LoadWorker
-  include Sidekiq1::Worker
+  include Sidekiq2::Worker
   sidekiq_options retry: 1
   sidekiq_retry_in do |x|
     1
@@ -96,7 +96,7 @@ iter.times do
   count.times do |idx|
     arr[idx][0] = idx
   end
-  Sidekiq1::Client.push_bulk('class' => LoadWorker, 'args' => arr)
+  Sidekiq2::Client.push_bulk('class' => LoadWorker, 'args' => arr)
 end
 Sidekiq.logger.error "Created #{count*iter} jobs"
 
@@ -127,7 +127,7 @@ begin
   fire_event(:startup)
   #Sidekiq.logger.error "Simulating 1ms of latency between Sidekiq and redis"
   #Toxiproxy[:redis].downstream(:latency, latency: 1).apply do
-    launcher = Sidekiq1::Launcher.new(Sidekiq.options)
+    launcher = Sidekiq2::Launcher.new(Sidekiq.options)
     launcher.run
 
     while readable_io = IO.select([self_read])
