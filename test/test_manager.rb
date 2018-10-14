@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq/manager'
+require 'sidekiq1/manager'
 
-class TestManager < Sidekiq::Test
+class TestManager < Sidekiq1::Test
 
   describe 'manager' do
     before do
-      Sidekiq.redis {|c| c.flushdb }
+      Sidekiq1.redis {|c| c.flushdb }
     end
 
     def new_manager(opts)
-      Sidekiq::Manager.new(opts)
+      Sidekiq1::Manager.new(opts)
     end
 
     it 'creates N processor instances' do

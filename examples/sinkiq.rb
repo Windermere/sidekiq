@@ -7,12 +7,12 @@
 require 'sinatra'
 require 'sidekiq'
 require 'redis'
-require 'sidekiq/api'
+require 'sidekiq1/api'
 
 $redis = Redis.new
 
 class SinatraWorker
-  include Sidekiq::Worker
+  include Sidekiq1::Worker
 
   def perform(msg="lulz you forgot a msg!")
     $redis.lpush("sinkiq-example-messages", msg)
@@ -20,7 +20,7 @@ class SinatraWorker
 end
 
 get '/' do
-  stats = Sidekiq::Stats.new
+  stats = Sidekiq1::Stats.new
   @failed = stats.failed
   @processed = stats.processed
   @messages = $redis.lrange('sinkiq-example-messages', 0, -1)

@@ -1,97 +1,97 @@
 # frozen_string_literal: true
 require_relative 'helper'
 
-class TestTesting < Sidekiq::Test
+class TestTesting < Sidekiq1::Test
   describe 'sidekiq testing' do
     describe 'require/load sidekiq/testing.rb' do
       before do
-        require 'sidekiq/testing'
+        require 'sidekiq1/testing'
       end
 
       after do
-        Sidekiq::Testing.disable!
+        Sidekiq1::Testing.disable!
       end
 
       it 'enables fake testing' do
-        Sidekiq::Testing.fake!
-        assert Sidekiq::Testing.enabled?
-        assert Sidekiq::Testing.fake?
-        refute Sidekiq::Testing.inline?
+        Sidekiq1::Testing.fake!
+        assert Sidekiq1::Testing.enabled?
+        assert Sidekiq1::Testing.fake?
+        refute Sidekiq1::Testing.inline?
       end
 
       it 'enables fake testing in a block' do
-        Sidekiq::Testing.disable!
-        assert Sidekiq::Testing.disabled?
-        refute Sidekiq::Testing.fake?
+        Sidekiq1::Testing.disable!
+        assert Sidekiq1::Testing.disabled?
+        refute Sidekiq1::Testing.fake?
 
-        Sidekiq::Testing.fake! do
-          assert Sidekiq::Testing.enabled?
-          assert Sidekiq::Testing.fake?
-          refute Sidekiq::Testing.inline?
+        Sidekiq1::Testing.fake! do
+          assert Sidekiq1::Testing.enabled?
+          assert Sidekiq1::Testing.fake?
+          refute Sidekiq1::Testing.inline?
         end
 
-        refute Sidekiq::Testing.enabled?
-        refute Sidekiq::Testing.fake?
+        refute Sidekiq1::Testing.enabled?
+        refute Sidekiq1::Testing.fake?
       end
 
       it 'disables testing in a block' do
-        Sidekiq::Testing.fake!
-        assert Sidekiq::Testing.fake?
+        Sidekiq1::Testing.fake!
+        assert Sidekiq1::Testing.fake?
 
-        Sidekiq::Testing.disable! do
-          refute Sidekiq::Testing.fake?
-          assert Sidekiq::Testing.disabled?
+        Sidekiq1::Testing.disable! do
+          refute Sidekiq1::Testing.fake?
+          assert Sidekiq1::Testing.disabled?
         end
 
-        assert Sidekiq::Testing.fake?
-        assert Sidekiq::Testing.enabled?
+        assert Sidekiq1::Testing.fake?
+        assert Sidekiq1::Testing.enabled?
       end
     end
 
     describe 'require/load sidekiq/testing/inline.rb' do
       before do
-        require 'sidekiq/testing/inline'
+        require 'sidekiq1/testing/inline'
       end
 
       after do
-        Sidekiq::Testing.disable!
+        Sidekiq1::Testing.disable!
       end
 
       it 'enables inline testing' do
-        Sidekiq::Testing.inline!
-        assert Sidekiq::Testing.enabled?
-        assert Sidekiq::Testing.inline?
-        refute Sidekiq::Testing.fake?
+        Sidekiq1::Testing.inline!
+        assert Sidekiq1::Testing.enabled?
+        assert Sidekiq1::Testing.inline?
+        refute Sidekiq1::Testing.fake?
       end
 
       it 'enables inline testing in a block' do
-        Sidekiq::Testing.disable!
-        assert Sidekiq::Testing.disabled?
-        refute Sidekiq::Testing.fake?
+        Sidekiq1::Testing.disable!
+        assert Sidekiq1::Testing.disabled?
+        refute Sidekiq1::Testing.fake?
 
-        Sidekiq::Testing.inline! do
-          assert Sidekiq::Testing.enabled?
-          assert Sidekiq::Testing.inline?
+        Sidekiq1::Testing.inline! do
+          assert Sidekiq1::Testing.enabled?
+          assert Sidekiq1::Testing.inline?
         end
 
-        refute Sidekiq::Testing.enabled?
-        refute Sidekiq::Testing.inline?
-        refute Sidekiq::Testing.fake?
+        refute Sidekiq1::Testing.enabled?
+        refute Sidekiq1::Testing.inline?
+        refute Sidekiq1::Testing.fake?
       end
     end
   end
 
   describe 'with middleware' do
     before do
-      require 'sidekiq/testing'
+      require 'sidekiq1/testing'
     end
 
     after do
-      Sidekiq::Testing.disable!
+      Sidekiq1::Testing.disable!
     end
 
     class AttributeWorker
-      include Sidekiq::Worker
+      include Sidekiq1::Worker
       sidekiq_class_attribute :count
       self.count = 0
       attr_accessor :foo
@@ -109,12 +109,12 @@ class TestTesting < Sidekiq::Test
     end
 
     it 'wraps the inlined worker with middleware' do
-      Sidekiq::Testing.server_middleware do |chain|
+      Sidekiq1::Testing.server_middleware do |chain|
         chain.add AttributeMiddleware
       end
 
       begin
-        Sidekiq::Testing.fake! do
+        Sidekiq1::Testing.fake! do
           AttributeWorker.perform_async
           assert_equal 0, AttributeWorker.count
         end
@@ -122,12 +122,12 @@ class TestTesting < Sidekiq::Test
         AttributeWorker.perform_one
         assert_equal 1, AttributeWorker.count
 
-        Sidekiq::Testing.inline! do
+        Sidekiq1::Testing.inline! do
           AttributeWorker.perform_async
           assert_equal 2, AttributeWorker.count
         end
       ensure
-        Sidekiq::Testing.server_middleware.clear
+        Sidekiq1::Testing.server_middleware.clear
       end
     end
   end

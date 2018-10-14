@@ -13,7 +13,7 @@ class WorkController < ApplicationController
   end
 
   def bulk
-    Sidekiq::Client.push_bulk('class' => HardWorker,
+    Sidekiq1::Client.push_bulk('class' => HardWorker,
                               'args' => [['bob', 1, 1], ['mike', 1, 2]])
     render :plain => 'enbulked'
   end

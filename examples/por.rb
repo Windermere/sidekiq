@@ -8,7 +8,7 @@ require 'sidekiq'
 # PlainOldRuby.perform_async "like a dog", 3
 #
 class PlainOldRuby
-  include Sidekiq::Worker
+  include Sidekiq1::Worker
 
   def perform(how_hard="super hard", how_long=1)
     sleep how_long

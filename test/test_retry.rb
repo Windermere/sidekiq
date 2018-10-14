@@ -1,17 +1,17 @@
 # encoding: utf-8
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq/scheduled'
-require 'sidekiq/job_retry'
+require 'sidekiq1/scheduled'
+require 'sidekiq1/job_retry'
 
-class TestRetry < Sidekiq::Test
+class TestRetry < Sidekiq1::Test
   describe 'middleware' do
     class SomeWorker
-      include Sidekiq::Worker
+      include Sidekiq1::Worker
     end
 
     before do
-      Sidekiq.redis {|c| c.flushdb }
+      Sidekiq1.redis {|c| c.flushdb }
     end
 
     def worker
@@ -19,7 +19,7 @@ class TestRetry < Sidekiq::Test
     end
 
     def handler(options={})
-      @handler ||= Sidekiq::JobRetry.new(options)
+      @handler ||= Sidekiq1::JobRetry.new(options)
     end
 
     def job(options={})
@@ -32,7 +32,7 @@ class TestRetry < Sidekiq::Test
           raise "boom"
         end
       end
-      assert_equal 1, Sidekiq::RetrySet.new.size
+      assert_equal 1, Sidekiq1::RetrySet.new.size
     end
 
     it 'allows disabling retry' do
@@ -41,7 +41,7 @@ class TestRetry < Sidekiq::Test
           raise "kerblammo!"
         end
       end
-      assert_equal 0, Sidekiq::RetrySet.new.size
+      assert_equal 0, Sidekiq1::RetrySet.new.size
     end
 
     it 'allows a numeric retry' do
@@ -50,8 +50,8 @@ class TestRetry < Sidekiq::Test
           raise "kerblammo!"
         end
       end
-      assert_equal 1, Sidekiq::RetrySet.new.size
-      assert_equal 0, Sidekiq::DeadSet.new.size
+      assert_equal 1, Sidekiq1::RetrySet.new.size
+      assert_equal 0, Sidekiq1::DeadSet.new.size
     end
 
     it 'allows 0 retry => no retry and dead queue' do
@@ -60,8 +60,8 @@ class TestRetry < Sidekiq::Test
           raise "kerblammo!"
         end
       end
-      assert_equal 0, Sidekiq::RetrySet.new.size
-      assert_equal 1, Sidekiq::DeadSet.new.size
+      assert_equal 0, Sidekiq1::RetrySet.new.size
+      assert_equal 1, Sidekiq1::DeadSet.new.size
     end
 
     it 'handles zany characters in error message, #1705' do
@@ -86,8 +86,8 @@ class TestRetry < Sidekiq::Test
         end
       end
 
-      assert_equal max_retries, Sidekiq::RetrySet.new.size
-      assert_equal 1, Sidekiq::DeadSet.new.size
+      assert_equal max_retries, Sidekiq1::RetrySet.new.size
+      assert_equal 1, Sidekiq1::DeadSet.new.size
     end
 
     it 'saves backtraces' do
@@ -128,12 +128,12 @@ class TestRetry < Sidekiq::Test
     end
 
     it 'shuts down without retrying work-in-progress, which will resume' do
-      rs = Sidekiq::RetrySet.new
+      rs = Sidekiq1::RetrySet.new
       assert_equal 0, rs.size
       msg = { 'class' => 'Bob', 'args' => [1,2,'foo'], 'retry' => true }
-      assert_raises Sidekiq::Shutdown do
+      assert_raises Sidekiq1::Shutdown do
         handler.local(worker, msg, 'default') do
-          raise Sidekiq::Shutdown
+          raise Sidekiq1::Shutdown
         end
       end
       assert_equal 0, rs.size
@@ -142,13 +142,13 @@ class TestRetry < Sidekiq::Test
     it 'shuts down cleanly when shutdown causes exception' do
       skip('Not supported in Ruby < 2.1.0') if RUBY_VERSION < '2.1.0'
 
-      rs = Sidekiq::RetrySet.new
+      rs = Sidekiq1::RetrySet.new
       assert_equal 0, rs.size
       msg = { 'class' => 'Bob', 'args' => [1,2,'foo'], 'retry' => true }
-      assert_raises Sidekiq::Shutdown do
+      assert_raises Sidekiq1::Shutdown do
         handler.local(worker, msg, 'default') do
           begin
-            raise Sidekiq::Shutdown
+            raise Sidekiq1::Shutdown
           rescue Interrupt
             raise "kerblammo!"
           end
@@ -160,12 +160,12 @@ class TestRetry < Sidekiq::Test
     it 'shuts down cleanly when shutdown causes chained exceptions' do
       skip('Not supported in Ruby < 2.1.0') if RUBY_VERSION < '2.1.0'
 
-      rs = Sidekiq::RetrySet.new
+      rs = Sidekiq1::RetrySet.new
       assert_equal 0, rs.size
-      assert_raises Sidekiq::Shutdown do
+      assert_raises Sidekiq1::Shutdown do
         handler.local(worker, job, 'default') do
           begin
-            raise Sidekiq::Shutdown
+            raise Sidekiq1::Shutdown
           rescue Interrupt
             begin
               raise "kerblammo!"
@@ -208,9 +208,9 @@ class TestRetry < Sidekiq::Test
     end
 
     it 'throws away old messages after too many retries (using the default)' do
-      q = Sidekiq::Queue.new
-      rs = Sidekiq::RetrySet.new
-      ds = Sidekiq::DeadSet.new
+      q = Sidekiq1::Queue.new
+      rs = Sidekiq1::RetrySet.new
+      ds = Sidekiq1::DeadSet.new
       assert_equal 0, q.size
       assert_equal 0, rs.size
       assert_equal 0, ds.size
@@ -228,19 +228,19 @@ class TestRetry < Sidekiq::Test
 
     describe "custom retry delay" do
       before do
-        @old_logger    = Sidekiq.logger
+        @old_logger    = Sidekiq1.logger
         @tmp_log_path  = '/tmp/sidekiq-retries.log'
-        Sidekiq.logger = Logger.new(@tmp_log_path)
+        Sidekiq1.logger = Logger.new(@tmp_log_path)
       end
 
       after do
-        Sidekiq.logger = @old_logger
-        Sidekiq.options.delete(:logfile)
+        Sidekiq1.logger = @old_logger
+        Sidekiq1.options.delete(:logfile)
         File.unlink @tmp_log_path if File.exist?(@tmp_log_path)
       end
 
       class CustomWorkerWithoutException
-        include Sidekiq::Worker
+        include Sidekiq1::Worker
 
         sidekiq_retry_in do |count|
           count * 2
@@ -251,12 +251,12 @@ class TestRetry < Sidekiq::Test
       end
 
       class CustomWorkerWithException
-        include Sidekiq::Worker
+        include Sidekiq1::Worker
 
         sidekiq_retry_in do |count, exception|
           case exception
           when SpecialError
-            Sidekiq::JobRetry::USE_DEFAULT_RETRY_FORMULA
+            Sidekiq1::JobRetry::USE_DEFAULT_RETRY_FORMULA
           when ArgumentError
             count * 4
           else
@@ -266,7 +266,7 @@ class TestRetry < Sidekiq::Test
       end
 
       class ErrorWorker
-        include Sidekiq::Worker
+        include Sidekiq1::Worker
 
         sidekiq_retry_in do |count|
           count / 0
@@ -312,7 +312,7 @@ class TestRetry < Sidekiq::Test
       end
 
       it "does not recurse infinitely checking if it's a shutdown" do
-        assert(!Sidekiq::JobRetry.new.send(
+        assert(!Sidekiq1::JobRetry.new.send(
           :exception_caused_by_shutdown?, @error))
       end
     end
@@ -336,7 +336,7 @@ class TestRetry < Sidekiq::Test
       end
 
       it "does not recurse infinitely checking if it's a shutdown" do
-        assert(!Sidekiq::JobRetry.new.send(
+        assert(!Sidekiq1::JobRetry.new.send(
           :exception_caused_by_shutdown?, @error))
       end
     end

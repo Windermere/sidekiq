@@ -12,7 +12,7 @@ HEAD
 4.0.4
 ---------
 
-- Update Sidekiq::Client patches to work with new Module#prepend
+- Update Sidekiq1::Client patches to work with new Module#prepend
   mechanism in Sidekiq 5.2.0. [#3930]
 
 4.0.3
@@ -21,7 +21,7 @@ HEAD
 - Add at\_exit handler to push any saved jobs in `reliable_push` when exiting. [#3823]
 - Implement batch death callback.  This is fired the first time a job within a batch dies. [#3841]
 ```ruby
-batch = Sidekiq::Batch.new
+batch = Sidekiq1::Batch.new
 batch.on(:death, ...)
 ```
 
@@ -58,7 +58,7 @@ config.super_fetch!
 ---------
 
 - Refactor batch job success/failure to gracefully handle several edge
-  cases with regard to Sidekiq::Shutdown.  This should greatly reduce
+  cases with regard to Sidekiq1::Shutdown.  This should greatly reduce
   the chances of seeing the long-standing "negative pending count" problem. [#3710]
 
 
@@ -67,7 +67,7 @@ config.super_fetch!
 
 - Add support for Datadog::Statsd, it is the recommended Statsd client.  [#3699]
 ```ruby
-Sidekiq::Pro.dogstatsd = ->{ Datadog::Statsd.new("metrics.example.com", 8125) }
+Sidekiq1::Pro.dogstatsd = ->{ Datadog::Statsd.new("metrics.example.com", 8125) }
 ```
 - Size the statsd connection pool based on Sidekiq's concurrency [#3700]
 
@@ -78,7 +78,7 @@ Sidekiq::Pro.dogstatsd = ->{ Datadog::Statsd.new("metrics.example.com", 8125) }
 This release overhauls the Statsd metrics support and adds more
 metrics for tracking Pro feature usage.  In your initializer:
 ```ruby
-Sidekiq::Pro.statsd = ->{ ::Statsd.new("127.0.0.1", 8125) }
+Sidekiq1::Pro.statsd = ->{ ::Statsd.new("127.0.0.1", 8125) }
 ```
 Sidekiq Pro will emit more metrics to Statsd:
 ```
@@ -126,7 +126,7 @@ Everything should be backwards compatible with one deprecation notice.
 
 - Add queue pause/unpause endpoints for scripting via curl [#3445]
 - Change how super\_fetch names private queues to avoid hostname/queue clashes. [#3443]
-- Re-implement `Sidekiq::Queue#delete_job` to avoid O(n) runtime [#3408]
+- Re-implement `Sidekiq1::Queue#delete_job` to avoid O(n) runtime [#3408]
 - Batch page displays Pending JIDs if less than 10 [#3130]
 - Batch page has a Search button to find associated Retries [#3130]
 - Make Batch UI progress bar more friendly to the colorblind [#3387]
@@ -167,7 +167,7 @@ end
 ```
 Also note that Sidekiq's `-i/--index` option is no longer used/relevant with super\_fetch.
 - Don't display "Delete/Retry All" buttons when filtering in Web UI [#3243]
-- Reimplement Sidekiq::JobSet#find\_job with ZSCAN [#3197]
+- Reimplement Sidekiq1::JobSet#find\_job with ZSCAN [#3197]
 
 3.4.0
 ---------
@@ -204,8 +204,8 @@ end
 ---------
 
 - Don't delete batches immediately upon success but set a 24 hr expiry, this allows
-  Sidekiq::Batch::Status#poll to work, even after batch success. [#3011]
-- New `Sidekiq::PendingSet#destroy(jid)` API to remove poison pill jobs [#3015]
+  Sidekiq1::Batch::Status#poll to work, even after batch success. [#3011]
+- New `Sidekiq1::PendingSet#destroy(jid)` API to remove poison pill jobs [#3015]
 
 3.2.2
 ---------
@@ -225,7 +225,7 @@ end
 ---------
 
 - Fixed detection of missing batches, `NoSuchBatch` should be raised
-  properly now if `Sidekiq::Batch.new(bid)` is called on a batch no
+  properly now if `Sidekiq1::Batch.new(bid)` is called on a batch no
   longer in Redis.
 - Remove support for Pro 1.x format batches.  This version will no
   longer seamlessly process batches created with Sidekiq Pro 1.x.
@@ -269,7 +269,7 @@ end
 3.0.3, 2.1.4
 ------------
 
-- Convert Lua-based `Sidekiq::Queue#delete_by_class` to Ruby-based, to
+- Convert Lua-based `Sidekiq1::Queue#delete_by_class` to Ruby-based, to
   avoid O(N^2) performance and possible Redis failure. [#2806]
 
 3.0.2
@@ -313,7 +313,7 @@ end
   Sidekiq Pro will randomly spread batches across the shards.  The BID
   will indicate which shard contains the batch data.  Jobs within a
   batch may be spread across all shards too. [#2548, jonhyman]
-- Officially deprecate Sidekiq::Notifications code.  Notifications have
+- Officially deprecate Sidekiq1::Notifications code.  Notifications have
   been undocumented for months now. [#2575]
 
 
@@ -339,7 +339,7 @@ end
 
 - Atomic scheduler now sets `enqueued_at` [#2414]
 - Batches now account for jobs which are stopped by client middleware [#2406]
-- Ignore redundant calls to `Sidekiq::Client.reliable_push!` [#2408]
+- Ignore redundant calls to `Sidekiq1::Client.reliable_push!` [#2408]
 
 2.0.4
 -----------
@@ -363,9 +363,9 @@ end
 POOL1 = ConnectionPool.new { Redis.new(:url => "redis://localhost:6379/0") }
 POOL2 = ConnectionPool.new { Redis.new(:url => "redis://localhost:6378/0") }
 
-mount Sidekiq::Pro::Web => '/sidekiq' # default
-mount Sidekiq::Pro::Web.with(redis_pool: POOL1), at: '/sidekiq1', as: 'sidekiq1' # shard1
-mount Sidekiq::Pro::Web.with(redis_pool: POOL2), at: '/sidekiq2', as: 'sidekiq2' # shard2
+mount Sidekiq1::Pro::Web => '/sidekiq' # default
+mount Sidekiq1::Pro::Web.with(redis_pool: POOL1), at: '/sidekiq1', as: 'sidekiq1' # shard1
+mount Sidekiq1::Pro::Web.with(redis_pool: POOL2), at: '/sidekiq2', as: 'sidekiq2' # shard2
 ```
 - **SECURITY** Fix batch XSS in error data.  Thanks to moneybird.com for
   reporting the issue.
@@ -459,7 +459,7 @@ mount Sidekiq::Pro::Web.with(redis_pool: POOL2), at: '/sidekiq2', as: 'sidekiq2'
 
 - Add ability to pause reliable queues via API.
 ```ruby
-q = Sidekiq::Queue.new("critical")
+q = Sidekiq1::Queue.new("critical")
 q.pause!
 q.paused? # => true
 q.unpause!
@@ -513,7 +513,7 @@ a few seconds to take effect.
   than 72 hours to process, you can extend the expiration date.
 
 ```ruby
-b = Sidekiq::Batch.new
+b = Sidekiq1::Batch.new
 b.expires_in 5.days
 ...
 ```
@@ -543,23 +543,23 @@ functionality will be unavailable.
   Redis does not provide the same SCAN operation on the LIST type.
   **Redis 2.8**
   ![Filtering](https://f.cloud.github.com/assets/2911/1619465/f47529f2-5657-11e3-8cd1-33899eb72aad.png)
-- SCAN support in the Sidekiq::SortedSet API.  Here's an example that
+- SCAN support in the Sidekiq1::SortedSet API.  Here's an example that
   finds all jobs which contain the substring "Warehouse::OrderShip"
   and deletes all matching retries.  If the set is large, this API
   will be **MUCH** faster than standard iteration using each.
   **Redis 2.8**
 ```ruby
-  Sidekiq::RetrySet.new.scan("Warehouse::OrderShip") do |job|
+  Sidekiq1::RetrySet.new.scan("Warehouse::OrderShip") do |job|
     job.delete
   end
 ```
 
-- Sidekiq::Batch#jobs now returns the set of JIDs added to the batch.
-- Sidekiq::Batch#jids returns the complete set of JIDs associated with the batch.
-- Sidekiq::Batch#remove\_jobs(jid, jid, ...) removes JIDs from the set, allowing early termination of jobs if they become irrelevant according to application logic.
-- Sidekiq::Batch#include?(jid) allows jobs to check if they are still
+- Sidekiq1::Batch#jobs now returns the set of JIDs added to the batch.
+- Sidekiq1::Batch#jids returns the complete set of JIDs associated with the batch.
+- Sidekiq1::Batch#remove\_jobs(jid, jid, ...) removes JIDs from the set, allowing early termination of jobs if they become irrelevant according to application logic.
+- Sidekiq1::Batch#include?(jid) allows jobs to check if they are still
   relevant to a Batch and exit early if not.
-- Sidekiq::SortedSet#find\_job(jid) now uses server-side Lua if possible **Redis 2.6** [jonhyman]
+- Sidekiq1::SortedSet#find\_job(jid) now uses server-side Lua if possible **Redis 2.6** [jonhyman]
 - The statsd integration now sets global job counts:
 ```ruby
   jobs.count
@@ -577,7 +577,7 @@ functionality will be unavailable.
 -----------
 
 - Convert Batch UI to use Sidekiq 2.16's support for extension localization.
-- Update reliable\_push to work with Sidekiq::Client refactoring in 2.16
+- Update reliable\_push to work with Sidekiq1::Client refactoring in 2.16
 - Pro now requires Sidekiq 2.16.0
 
 1.2.4
@@ -585,7 +585,7 @@ functionality will be unavailable.
 
 - Convert Batch UI to Bootstrap 3
 - Pro now requires Sidekiq 2.15.0
-- Add Sidekiq::Batch::Status#delete [#1205]
+- Add Sidekiq1::Batch::Status#delete [#1205]
 
 1.2.3
 -----------
@@ -614,7 +614,7 @@ functionality will be unavailable.
   by @jackrg [#1102]
 - Fix issue with reliable\_push where it didn't return the JID for a pushed
   job when sending previously cached jobs to Redis.
-- Add fast Sidekiq::Queue#delete\_job(jid) API which leverages Lua so job lookup is
+- Add fast Sidekiq1::Queue#delete\_job(jid) API which leverages Lua so job lookup is
   100% server-side.  Benchmark vs Sidekiq's Job#delete API. **Redis 2.6**
 
 ```
@@ -624,13 +624,13 @@ Sidekiq API
  17.250000   2.220000  19.470000 ( 22.193300)
 ```
 
-- Add fast Sidekiq::Queue#delete\_by\_class(klass) API to remove all
+- Add fast Sidekiq1::Queue#delete\_by\_class(klass) API to remove all
   jobs of a given type.  Uses server-side Lua for performance. **Redis 2.6**
 
 1.1.0
 -----------
 
-- New `sidekiq/pro/reliable_push` which makes Sidekiq::Client resiliant
+- New `sidekiq/pro/reliable_push` which makes Sidekiq1::Client resiliant
   to Redis network failures. [#793]
 - Move `sidekiq/reliable_fetch` to `sidekiq/pro/reliable_fetch`
 
@@ -688,7 +688,7 @@ process crashes unexpectedly. [mperham/sidekiq#607]
 ```ruby
 require 'sidekiq/web'
 require 'sidekiq/batch/web'
-mount Sidekiq::Web => '/sidekiq'
+mount Sidekiq1::Web => '/sidekiq'
 ```
 
 
@@ -702,7 +702,7 @@ mount Sidekiq::Web => '/sidekiq'
 
 ```ruby
 def perform(...)
-  batch = Sidekiq::Batch.new(bid) # instantiate batch associated with this job
+  batch = Sidekiq1::Batch.new(bid) # instantiate batch associated with this job
   batch.jobs do
     SomeWorker.perform_async # add another job
   end
@@ -722,7 +722,7 @@ end
   jobs based on the data it is processing.
 
 ```ruby
-batch = Sidekiq::Batch.new(bid)
+batch = Sidekiq1::Batch.new(bid)
 batch.jobs do
   # define more jobs here
 end

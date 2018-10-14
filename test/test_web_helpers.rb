@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq/web'
+require 'sidekiq1/web'
 
-class TestWebHelpers < Sidekiq::Test
+class TestWebHelpers < Sidekiq1::Test
 
   class Helpers
-    include Sidekiq::WebHelpers
+    include Sidekiq1::WebHelpers
 
     def initialize(params={})
       @thehash = default.merge(params)

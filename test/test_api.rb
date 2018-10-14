@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq/api'
+require 'sidekiq1/api'
 require 'active_job'
 require 'action_mailer'
 
-class TestApi < Sidekiq::Test
+class TestApi < Sidekiq1::Test
   describe 'api' do
     before do
-      Sidekiq.redis {|c| c.flushdb }
+      Sidekiq1.redis {|c| c.flushdb }
     end
 
     describe 'RedisScanner' do
       it 'returns identical to smembers' do
         test_obj = Object.new
-        test_obj.extend(Sidekiq::RedisScanner)
+        test_obj.extend(Sidekiq1::RedisScanner)
         50.times do |i|
-          Sidekiq.redis { |conn| conn.sadd('processes', "test-process-#{i}") }
+          Sidekiq1.redis { |conn| conn.sadd('processes', "test-process-#{i}") }
         end
-        sscan = Sidekiq.redis { |c| test_obj.sscan(c, 'processes') }.sort!
-        smembers = Sidekiq.redis { |c| c.smembers('processes') }.sort!
+        sscan = Sidekiq1.redis { |c| test_obj.sscan(c, 'processes') }.sort!
+        smembers = Sidekiq1.redis { |c| c.smembers('processes') }.sort!
         assert_equal sscan.size, 50
         assert_equal sscan, smembers
       end
@@ -26,7 +26,7 @@ class TestApi < Sidekiq::Test
 
     describe "stats" do
       it "is initially zero" do
-        s = Sidekiq::Stats.new
+        s = Sidekiq1::Stats.new
         assert_equal 0, s.processed
         assert_equal 0, s.failed
         assert_equal 0, s.enqueued
@@ -35,52 +35,52 @@ class TestApi < Sidekiq::Test
 
       describe "processed" do
         it "returns number of processed jobs" do
-          Sidekiq.redis { |conn| conn.set("stat:processed", 5) }
-          s = Sidekiq::Stats.new
+          Sidekiq1.redis { |conn| conn.set("stat:processed", 5) }
+          s = Sidekiq1::Stats.new
           assert_equal 5, s.processed
         end
       end
 
       describe "failed" do
         it "returns number of failed jobs" do
-          Sidekiq.redis { |conn| conn.set("stat:failed", 5) }
-          s = Sidekiq::Stats.new
+          Sidekiq1.redis { |conn| conn.set("stat:failed", 5) }
+          s = Sidekiq1::Stats.new
           assert_equal 5, s.failed
         end
       end
 
       describe "reset" do
         before do
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.set('stat:processed', 5)
             conn.set('stat:failed', 10)
           end
         end
 
         it 'will reset all stats by default' do
-          Sidekiq::Stats.new.reset
-          s = Sidekiq::Stats.new
+          Sidekiq1::Stats.new.reset
+          s = Sidekiq1::Stats.new
           assert_equal 0, s.failed
           assert_equal 0, s.processed
         end
 
         it 'can reset individual stats' do
-          Sidekiq::Stats.new.reset('failed')
-          s = Sidekiq::Stats.new
+          Sidekiq1::Stats.new.reset('failed')
+          s = Sidekiq1::Stats.new
           assert_equal 0, s.failed
           assert_equal 5, s.processed
         end
 
         it 'can accept anything that responds to #to_s' do
-          Sidekiq::Stats.new.reset(:failed)
-          s = Sidekiq::Stats.new
+          Sidekiq1::Stats.new.reset(:failed)
+          s = Sidekiq1::Stats.new
           assert_equal 0, s.failed
           assert_equal 5, s.processed
         end
 
         it 'ignores anything other than "failed" or "processed"' do
-          Sidekiq::Stats.new.reset((1..10).to_a, ['failed'])
-          s = Sidekiq::Stats.new
+          Sidekiq1::Stats.new.reset((1..10).to_a, ['failed'])
+          s = Sidekiq1::Stats.new
           assert_equal 0, s.failed
           assert_equal 5, s.processed
         end
@@ -88,12 +88,12 @@ class TestApi < Sidekiq::Test
 
       describe "queues" do
         it "is initially empty" do
-          s = Sidekiq::Stats::Queues.new
+          s = Sidekiq1::Stats::Queues.new
           assert_equal 0, s.lengths.size
         end
 
         it "returns a hash of queue and size in order" do
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.rpush 'queue:foo', '{}'
             conn.sadd 'queues', 'foo'
 
@@ -101,39 +101,39 @@ class TestApi < Sidekiq::Test
             conn.sadd 'queues', 'bar'
           end
 
-          s = Sidekiq::Stats::Queues.new
+          s = Sidekiq1::Stats::Queues.new
           assert_equal ({ "foo" => 1, "bar" => 3 }), s.lengths
           assert_equal "bar", s.lengths.first.first
 
-          assert_equal Sidekiq::Stats.new.queues, Sidekiq::Stats::Queues.new.lengths
+          assert_equal Sidekiq1::Stats.new.queues, Sidekiq1::Stats::Queues.new.lengths
         end
       end
 
       describe "enqueued" do
         it 'handles latency for good jobs' do
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.rpush 'queue:default', "{\"enqueued_at\": #{Time.now.to_f}}"
             conn.sadd 'queues', 'default'
           end
-          s = Sidekiq::Stats.new
+          s = Sidekiq1::Stats.new
           assert s.default_queue_latency > 0
-          q = Sidekiq::Queue.new
+          q = Sidekiq1::Queue.new
           assert q.latency > 0
         end
 
         it 'handles latency for incomplete jobs' do
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.rpush 'queue:default', '{}'
             conn.sadd 'queues', 'default'
           end
-          s = Sidekiq::Stats.new
+          s = Sidekiq1::Stats.new
           assert_equal 0, s.default_queue_latency
-          q = Sidekiq::Queue.new
+          q = Sidekiq1::Queue.new
           assert_equal 0, q.latency
         end
 
         it "returns total enqueued jobs" do
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.rpush 'queue:foo', '{}'
             conn.sadd 'queues', 'foo'
 
@@ -141,7 +141,7 @@ class TestApi < Sidekiq::Test
             conn.sadd 'queues', 'bar'
           end
 
-          s = Sidekiq::Stats.new
+          s = Sidekiq1::Stats.new
           assert_equal 4, s.enqueued
         end
       end
@@ -159,20 +159,20 @@ class TestApi < Sidekiq::Test
 
         describe "processed" do
           it 'retrieves hash of dates' do
-            Sidekiq.redis do |c|
+            Sidekiq1.redis do |c|
               c.incrby("stat:processed:2012-12-24", 4)
               c.incrby("stat:processed:2012-12-25", 1)
               c.incrby("stat:processed:2012-12-26", 6)
               c.incrby("stat:processed:2012-12-27", 2)
             end
             Time.stub(:now, Time.parse("2012-12-26 1:00:00 -0500")) do
-              s = Sidekiq::Stats::History.new(2)
+              s = Sidekiq1::Stats::History.new(2)
               assert_equal({ "2012-12-26" => 6, "2012-12-25" => 1 }, s.processed)
 
-              s = Sidekiq::Stats::History.new(3)
+              s = Sidekiq1::Stats::History.new(3)
               assert_equal({ "2012-12-26" => 6, "2012-12-25" => 1, "2012-12-24" => 4 }, s.processed)
 
-              s = Sidekiq::Stats::History.new(2, Date.parse("2012-12-25"))
+              s = Sidekiq1::Stats::History.new(2, Date.parse("2012-12-25"))
               assert_equal({ "2012-12-25" => 1, "2012-12-24" => 4 }, s.processed)
             end
           end
@@ -180,20 +180,20 @@ class TestApi < Sidekiq::Test
 
         describe "failed" do
           it 'retrieves hash of dates' do
-            Sidekiq.redis do |c|
+            Sidekiq1.redis do |c|
               c.incrby("stat:failed:2012-12-24", 4)
               c.incrby("stat:failed:2012-12-25", 1)
               c.incrby("stat:failed:2012-12-26", 6)
               c.incrby("stat:failed:2012-12-27", 2)
             end
             Time.stub(:now, Time.parse("2012-12-26 1:00:00 -0500")) do
-              s = Sidekiq::Stats::History.new(2)
+              s = Sidekiq1::Stats::History.new(2)
               assert_equal ({ "2012-12-26" => 6, "2012-12-25" => 1 }), s.failed
 
-              s = Sidekiq::Stats::History.new(3)
+              s = Sidekiq1::Stats::History.new(3)
               assert_equal ({ "2012-12-26" => 6, "2012-12-25" => 1, "2012-12-24" => 4 }), s.failed
 
-              s = Sidekiq::Stats::History.new(2, Date.parse("2012-12-25"))
+              s = Sidekiq1::Stats::History.new(2, Date.parse("2012-12-25"))
               assert_equal ({ "2012-12-25" => 1, "2012-12-24" => 4 }), s.failed
             end
           end
@@ -203,7 +203,7 @@ class TestApi < Sidekiq::Test
 
     describe 'with an empty database' do
       it 'shows queue as empty' do
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         assert_equal 0, q.size
         assert_equal 0, q.latency
       end
@@ -224,11 +224,11 @@ class TestApi < Sidekiq::Test
       end
 
       class ApiWorker
-        include Sidekiq::Worker
+        include Sidekiq1::Worker
       end
 
       it 'can enumerate jobs' do
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         Time.stub(:now, Time.new(2012, 12, 26)) do
           ApiWorker.perform_async(1, 'mike')
           assert_equal ['TestApi::ApiWorker'], q.map(&:klass)
@@ -240,7 +240,7 @@ class TestApi < Sidekiq::Test
         end
         assert q.latency > 10_000_000
 
-        q = Sidekiq::Queue.new('other')
+        q = Sidekiq1::Queue.new('other')
         assert_equal 0, q.size
       end
 
@@ -249,29 +249,29 @@ class TestApi < Sidekiq::Test
         # from Redis to ensure everything is sorted: the pages and the items withing them.
         51.times { ApiWorker.perform_in(100, 1, 'foo') }
 
-        set = Sidekiq::ScheduledSet.new.to_a
+        set = Sidekiq1::ScheduledSet.new.to_a
 
         assert_equal set.sort_by { |job| -job.score }, set
       end
 
       it 'has no enqueued_at time for jobs enqueued in the future' do
         job_id = ApiWorker.perform_in(100, 1, 'foo')
-        job = Sidekiq::ScheduledSet.new.find_job(job_id)
+        job = Sidekiq1::ScheduledSet.new.find_job(job_id)
         assert_nil job.enqueued_at
       end
 
       it 'unwraps delayed jobs' do
-        Sidekiq::Extensions.enable_delay!
-        Sidekiq::Queue.delay.foo(1,2,3)
-        q = Sidekiq::Queue.new
+        Sidekiq1::Extensions.enable_delay!
+        Sidekiq1::Queue.delay.foo(1,2,3)
+        q = Sidekiq1::Queue.new
         x = q.first
-        assert_equal "Sidekiq::Queue.foo", x.display_class
+        assert_equal "Sidekiq1::Queue.foo", x.display_class
         assert_equal [1,2,3], x.display_args
       end
 
       it 'unwraps ActiveJob jobs' do
         ApiJob.perform_later(1, 2, 3)
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         x = q.first
         assert_equal "TestApi::ApiJob", x.display_class
         assert_equal [1,2,3], x.display_args
@@ -279,7 +279,7 @@ class TestApi < Sidekiq::Test
 
       it 'unwraps ActionMailer jobs' do
         ApiMailer.test_email(1, 2, 3).deliver_later
-        q = Sidekiq::Queue.new('mailers')
+        q = Sidekiq1::Queue.new('mailers')
         x = q.first
         assert_equal "TestApi::ApiMailer#test_email", x.display_class
         assert_equal [1,2,3], x.display_args
@@ -287,12 +287,12 @@ class TestApi < Sidekiq::Test
 
       it 'has no enqueued_at time for jobs enqueued in the future' do
         job_id = ApiWorker.perform_in(100, 1, 'foo')
-        job = Sidekiq::ScheduledSet.new.find_job(job_id)
+        job = Sidekiq1::ScheduledSet.new.find_job(job_id)
         assert_nil job.enqueued_at
       end
 
       it 'can delete jobs' do
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         ApiWorker.perform_async(1, 'mike')
         assert_equal 1, q.size
 
@@ -307,36 +307,36 @@ class TestApi < Sidekiq::Test
       it "can move scheduled job to queue" do
         remain_id = ApiWorker.perform_in(100, 1, 'jason')
         job_id = ApiWorker.perform_in(100, 1, 'jason')
-        job = Sidekiq::ScheduledSet.new.find_job(job_id)
-        q = Sidekiq::Queue.new
+        job = Sidekiq1::ScheduledSet.new.find_job(job_id)
+        q = Sidekiq1::Queue.new
         job.add_to_queue
         queued_job = q.find_job(job_id)
         refute_nil queued_job
         assert_equal queued_job.jid, job_id
-        assert_nil Sidekiq::ScheduledSet.new.find_job(job_id)
-        refute_nil Sidekiq::ScheduledSet.new.find_job(remain_id)
+        assert_nil Sidekiq1::ScheduledSet.new.find_job(job_id)
+        refute_nil Sidekiq1::ScheduledSet.new.find_job(remain_id)
       end
 
       it "handles multiple scheduled jobs when moving to queue" do
-        jids = Sidekiq::Client.push_bulk('class' => ApiWorker,
+        jids = Sidekiq1::Client.push_bulk('class' => ApiWorker,
                                          'args' => [[1, 'jason'], [2, 'jason']],
                                          'at' => Time.now.to_f)
         assert_equal 2, jids.size
         (remain_id, job_id) = jids
-        job = Sidekiq::ScheduledSet.new.find_job(job_id)
-        q = Sidekiq::Queue.new
+        job = Sidekiq1::ScheduledSet.new.find_job(job_id)
+        q = Sidekiq1::Queue.new
         job.add_to_queue
         queued_job = q.find_job(job_id)
         refute_nil queued_job
         assert_equal queued_job.jid, job_id
-        assert_nil Sidekiq::ScheduledSet.new.find_job(job_id)
-        refute_nil Sidekiq::ScheduledSet.new.find_job(remain_id)
+        assert_nil Sidekiq1::ScheduledSet.new.find_job(job_id)
+        refute_nil Sidekiq1::ScheduledSet.new.find_job(remain_id)
       end
 
       it 'can kill a scheduled job' do
         job_id = ApiWorker.perform_in(100, 1, '{"foo":123}')
-        job = Sidekiq::ScheduledSet.new.find_job(job_id)
-        ds = Sidekiq::DeadSet.new
+        job = Sidekiq1::ScheduledSet.new.find_job(job_id)
+        ds = Sidekiq1::DeadSet.new
         assert_equal 0, ds.size
         job.kill
         assert_equal 1, ds.size
@@ -347,7 +347,7 @@ class TestApi < Sidekiq::Test
         51.times do
           ApiWorker.perform_in(100, 'aaron')
         end
-        set = Sidekiq::ScheduledSet.new
+        set = Sidekiq1::ScheduledSet.new
         set.map(&:delete)
         assert_equal set.size, 0
       end
@@ -357,13 +357,13 @@ class TestApi < Sidekiq::Test
         51.times do
           ApiWorker.perform_async(1, 'aaron')
         end
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         q.map(&:delete)
         assert_equal q.size, 0
       end
 
       it 'can find job by id in queues' do
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         job_id = ApiWorker.perform_async(1, 'jason')
         job = q.find_job(job_id)
         refute_nil job
@@ -371,11 +371,11 @@ class TestApi < Sidekiq::Test
       end
 
       it 'can clear a queue' do
-        q = Sidekiq::Queue.new
+        q = Sidekiq1::Queue.new
         2.times { ApiWorker.perform_async(1, 'mike') }
         q.clear
 
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           refute conn.smembers('queues').include?('foo')
           refute conn.exists('queue:foo')
         end
@@ -385,7 +385,7 @@ class TestApi < Sidekiq::Test
         same_time = Time.now.to_f
         add_retry('bob1', same_time)
         add_retry('bob2', same_time)
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 2, r.fetch(same_time).size
       end
 
@@ -393,19 +393,19 @@ class TestApi < Sidekiq::Test
         same_time = Time.now.to_f
         add_retry('bob1', same_time)
         add_retry('bob2', same_time)
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 1, r.fetch(same_time, 'bob1').size
       end
 
       it 'shows empty retries' do
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 0, r.size
       end
 
       it 'can enumerate retries' do
         add_retry
 
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 1, r.size
         array = r.to_a
         assert_equal 1, array.size
@@ -421,7 +421,7 @@ class TestApi < Sidekiq::Test
         start_time = Time.now.to_f
         add_retry('bob2', Time.now.to_f)
         assert_raises(ArgumentError) do
-          Sidekiq::RetrySet.new.delete(start_time)
+          Sidekiq1::RetrySet.new.delete(start_time)
         end
       end
 
@@ -429,20 +429,20 @@ class TestApi < Sidekiq::Test
         same_time = Time.now.to_f
         add_retry('bob1', same_time)
         add_retry('bob2', same_time)
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 2, r.size
-        Sidekiq::RetrySet.new.delete(same_time, 'bob1')
+        Sidekiq1::RetrySet.new.delete(same_time, 'bob1')
         assert_equal 1, r.size
       end
 
       it 'can retry a retry' do
         add_retry
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 1, r.size
         r.first.retry
         assert_equal 0, r.size
-        assert_equal 1, Sidekiq::Queue.new('default').size
-        job = Sidekiq::Queue.new('default').first
+        assert_equal 1, Sidekiq1::Queue.new('default').size
+        job = Sidekiq1::Queue.new('default').first
         assert_equal 'bob', job.jid
         assert_equal 1, job['retry_count']
       end
@@ -450,7 +450,7 @@ class TestApi < Sidekiq::Test
       it 'can clear retries' do
         add_retry
         add_retry('test')
-        r = Sidekiq::RetrySet.new
+        r = Sidekiq1::RetrySet.new
         assert_equal 2, r.size
         r.clear
         assert_equal 0, r.size
@@ -467,15 +467,15 @@ class TestApi < Sidekiq::Test
         }
 
         time = Time.now.to_f
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           conn.multi do
             conn.sadd('processes', odata['key'])
-            conn.hmset(odata['key'], 'info', Sidekiq.dump_json(odata), 'busy', 10, 'beat', time)
+            conn.hmset(odata['key'], 'info', Sidekiq1.dump_json(odata), 'busy', 10, 'beat', time)
             conn.sadd('processes', 'fake:pid')
           end
         end
 
-        ps = Sidekiq::ProcessSet.new.to_a
+        ps = Sidekiq1::ProcessSet.new.to_a
         assert_equal 1, ps.size
         data = ps.first
         assert_equal 10, data['busy']
@@ -484,12 +484,12 @@ class TestApi < Sidekiq::Test
         data.quiet!
         data.stop!
         signals_string = "#{odata['key']}-signals"
-        assert_equal "TERM", Sidekiq.redis{|c| c.lpop(signals_string) }
-        assert_equal "TSTP", Sidekiq.redis{|c| c.lpop(signals_string) }
+        assert_equal "TERM", Sidekiq1.redis{|c| c.lpop(signals_string) }
+        assert_equal "TSTP", Sidekiq1.redis{|c| c.lpop(signals_string) }
       end
 
       it 'can enumerate workers' do
-        w = Sidekiq::Workers.new
+        w = Sidekiq1::Workers.new
         assert_equal 0, w.size
         w.each do
           assert false
@@ -498,14 +498,14 @@ class TestApi < Sidekiq::Test
         hn = Socket.gethostname
         key = "#{hn}:#{$$}"
         pdata = { 'pid' => $$, 'hostname' => hn, 'started_at' => Time.now.to_i }
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           conn.sadd('processes', key)
-          conn.hmset(key, 'info', Sidekiq.dump_json(pdata), 'busy', 0, 'beat', Time.now.to_f)
+          conn.hmset(key, 'info', Sidekiq1.dump_json(pdata), 'busy', 0, 'beat', Time.now.to_f)
         end
 
         s = "#{key}:workers"
-        data = Sidekiq.dump_json({ 'payload' => {}, 'queue' => 'default', 'run_at' => Time.now.to_i })
-        Sidekiq.redis do |c|
+        data = Sidekiq1.dump_json({ 'payload' => {}, 'queue' => 'default', 'run_at' => Time.now.to_i })
+        Sidekiq1.redis do |c|
           c.hmset(s, '1234', data)
         end
 
@@ -517,8 +517,8 @@ class TestApi < Sidekiq::Test
         end
 
         s = "#{key}:workers"
-        data = Sidekiq.dump_json({ 'payload' => {}, 'queue' => 'default', 'run_at' => (Time.now.to_i - 2*60*60) })
-        Sidekiq.redis do |c|
+        data = Sidekiq1.dump_json({ 'payload' => {}, 'queue' => 'default', 'run_at' => (Time.now.to_i - 2*60*60) })
+        Sidekiq1.redis do |c|
           c.multi do
             c.hmset(s, '5678', data)
             c.hmset("b#{s}", '5678', data)
@@ -532,7 +532,7 @@ class TestApi < Sidekiq::Test
         add_retry('foo1')
         add_retry('foo2')
 
-        retries = Sidekiq::RetrySet.new
+        retries = Sidekiq1::RetrySet.new
         assert_equal 2, retries.size
         refute(retries.map { |r| r.score > (Time.now.to_f + 9) }.any?)
 
@@ -547,28 +547,28 @@ class TestApi < Sidekiq::Test
       it 'prunes processes which have died' do
         data = { 'pid' => rand(10_000), 'hostname' => "app#{rand(1_000)}", 'started_at' => Time.now.to_f }
         key = "#{data['hostname']}:#{data['pid']}"
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           conn.sadd('processes', key)
-          conn.hmset(key, 'info', Sidekiq.dump_json(data), 'busy', 0, 'beat', Time.now.to_f)
+          conn.hmset(key, 'info', Sidekiq1.dump_json(data), 'busy', 0, 'beat', Time.now.to_f)
         end
 
-        ps = Sidekiq::ProcessSet.new
+        ps = Sidekiq1::ProcessSet.new
         assert_equal 1, ps.size
         assert_equal 1, ps.to_a.size
 
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           conn.sadd('processes', "bar:987")
           conn.sadd('processes', "bar:986")
         end
 
-        ps = Sidekiq::ProcessSet.new
+        ps = Sidekiq1::ProcessSet.new
         assert_equal 1, ps.size
         assert_equal 1, ps.to_a.size
       end
 
       def add_retry(jid = 'bob', at = Time.now.to_f)
-        payload = Sidekiq.dump_json('class' => 'ApiWorker', 'args' => [1, 'mike'], 'queue' => 'default', 'jid' => jid, 'retry_count' => 2, 'failed_at' => Time.now.to_f)
-        Sidekiq.redis do |conn|
+        payload = Sidekiq1.dump_json('class' => 'ApiWorker', 'args' => [1, 'mike'], 'queue' => 'default', 'jid' => jid, 'retry_count' => 2, 'failed_at' => Time.now.to_f)
+        Sidekiq1.redis do |conn|
           conn.zadd('retry', at.to_s, payload)
         end
       end

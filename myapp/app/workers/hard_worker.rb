@@ -1,5 +1,5 @@
 class HardWorker
-  include Sidekiq::Worker
+  include Sidekiq1::Worker
   sidekiq_options :backtrace => 5
 
   def perform(name, count, salt)

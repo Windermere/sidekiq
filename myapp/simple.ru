@@ -1,4 +1,4 @@
-# Easiest way to run Sidekiq::Web.
+# Easiest way to run Sidekiq1::Web.
 # Run with "bundle exec rackup simple.ru"
 
 require 'sidekiq'
@@ -8,7 +8,7 @@ Sidekiq.configure_client do |config|
   config.redis = { url: 'redis://localhost:6379/0', size: 1 }
 end
 
-Sidekiq::Client.push('class' => "HardWorker", 'args' => [])
+Sidekiq1::Client.push('class' => "HardWorker", 'args' => [])
 
 require 'sidekiq/web'
-run Sidekiq::Web
+run Sidekiq1::Web

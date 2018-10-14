@@ -8,7 +8,7 @@ $max = 10_000
 # Start up sidekiq via
 # ./bin/sidekiq -r ./examples/leak.rb > /dev/null
 class MyWorker
-  include Sidekiq::Worker
+  include Sidekiq1::Worker
 
   def perform
     $c += 1

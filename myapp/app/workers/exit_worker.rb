@@ -1,5 +1,5 @@
 class ExitWorker
-  include Sidekiq::Worker
+  include Sidekiq1::Worker
 
   def perform
     logger.warn "Success"

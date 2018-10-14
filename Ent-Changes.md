@@ -24,7 +24,7 @@ HEAD
 - Adjust middleware so unique jobs that don't push aren't registered in a Batch [#3662]
 - Add new unlimited rate limiter, useful for testing [#3743]
 ```ruby
-limiter = Sidekiq::Limiter.unlimited(...any args...)
+limiter = Sidekiq1::Limiter.unlimited(...any args...)
 ```
 
 1.6.1
@@ -59,7 +59,7 @@ limiter = Sidekiq::Limiter.unlimited(...any args...)
 - Fix encrypted arguments double-encrypted by retry or rate limiting [#3368]
 - Fix leak in concurrent rate limiter, run this in Rails console to clean up existing data [#3323]
 ```ruby
-expiry = 1.month.to_i; Sidekiq::Limiter.redis { |c| c.scan_each(match: "lmtr-cfree-*") { |key| c.expire(key, expiry) } }
+expiry = 1.month.to_i; Sidekiq1::Limiter.redis { |c| c.scan_each(match: "lmtr-cfree-*") { |key| c.expire(key, expiry) } }
 ```
 
 1.5.1
@@ -201,7 +201,7 @@ documentation](https://github.com/mperham/sidekiq/wiki/Ent-Multi-Process) for de
 0.7.3
 ----------
 
-- Rework `Sidekiq::Limiter` redis handling to match global redis handling.
+- Rework `Sidekiq1::Limiter` redis handling to match global redis handling.
 - Allow user to customize rate limit backoff logic and handle custom
   rate limit errors.
 - Fix scalability issue with Limiter index page.

@@ -1,17 +1,17 @@
 # frozen_string_literal: true
 require_relative 'helper'
-require 'sidekiq/scheduled'
+require 'sidekiq1/scheduled'
 
-class TestScheduled < Sidekiq::Test
+class TestScheduled < Sidekiq1::Test
   class ScheduledWorker
-    include Sidekiq::Worker
+    include Sidekiq1::Worker
     def perform(x)
     end
   end
 
   describe 'poller' do
     before do
-      Sidekiq.redis{|c| c.flushdb}
+      Sidekiq1.redis{|c| c.flushdb}
       @error_1  = { 'class' => ScheduledWorker.name, 'args' => [0], 'queue' => 'queue_1' }
       @error_2  = { 'class' => ScheduledWorker.name, 'args' => [1], 'queue' => 'queue_2' }
       @error_3  = { 'class' => ScheduledWorker.name, 'args' => [2], 'queue' => 'queue_3' }
@@ -19,9 +19,9 @@ class TestScheduled < Sidekiq::Test
       @future_2 = { 'class' => ScheduledWorker.name, 'args' => [4], 'queue' => 'queue_5' }
       @future_3 = { 'class' => ScheduledWorker.name, 'args' => [5], 'queue' => 'queue_6' }
 
-      @retry = Sidekiq::RetrySet.new
-      @scheduled = Sidekiq::ScheduledSet.new
-      @poller = Sidekiq::Scheduled::Poller.new
+      @retry = Sidekiq1::RetrySet.new
+      @scheduled = Sidekiq1::ScheduledSet.new
+      @poller = Sidekiq1::Scheduled::Poller.new
     end
 
     class Stopper
@@ -31,7 +31,7 @@ class TestScheduled < Sidekiq::Test
     end
 
     it 'executes client middleware' do
-      Sidekiq.client_middleware.add Stopper
+      Sidekiq1.client_middleware.add Stopper
       begin
         @retry.schedule (Time.now - 60).to_f, @error_1
         @retry.schedule (Time.now - 60).to_f, @error_2
@@ -40,12 +40,12 @@ class TestScheduled < Sidekiq::Test
 
         @poller.enqueue
 
-        assert_equal 0, Sidekiq::Queue.new("queue_1").size
-        assert_equal 1, Sidekiq::Queue.new("queue_2").size
-        assert_equal 0, Sidekiq::Queue.new("queue_5").size
-        assert_equal 1, Sidekiq::Queue.new("queue_6").size
+        assert_equal 0, Sidekiq1::Queue.new("queue_1").size
+        assert_equal 1, Sidekiq1::Queue.new("queue_2").size
+        assert_equal 0, Sidekiq1::Queue.new("queue_5").size
+        assert_equal 1, Sidekiq1::Queue.new("queue_6").size
       ensure
-        Sidekiq.client_middleware.remove Stopper
+        Sidekiq1.client_middleware.remove Stopper
       end
     end
 
@@ -65,10 +65,10 @@ class TestScheduled < Sidekiq::Test
       Time.stub(:now, enqueued_time) do
         @poller.enqueue
 
-        Sidekiq.redis do |conn|
+        Sidekiq1.redis do |conn|
           %w(queue:queue_1 queue:queue_2 queue:queue_4 queue:queue_5).each do |queue_name|
             assert_equal 1, conn.llen(queue_name)
-            job = Sidekiq.load_json(conn.lrange(queue_name, 0, -1)[0])
+            job = Sidekiq1.load_json(conn.lrange(queue_name, 0, -1)[0])
             assert_equal enqueued_time.to_f, job['enqueued_at']
             assert_equal created_time.to_f,  job['created_at']
           end
@@ -80,11 +80,11 @@ class TestScheduled < Sidekiq::Test
     end
 
     def with_sidekiq_option(name, value)
-      _original, Sidekiq.options[name] = Sidekiq.options[name], value
+      _original, Sidekiq1.options[name] = Sidekiq1.options[name], value
       begin
         yield
       ensure
-        Sidekiq.options[name] = _original
+        Sidekiq1.options[name] = _original
       end
     end
 
@@ -102,7 +102,7 @@ class TestScheduled < Sidekiq::Test
     it 'calculates an average poll interval based on the number of known Sidekiq processes' do
       with_sidekiq_option(:average_scheduled_poll_interval, 10) do
         3.times do |i|
-          Sidekiq.redis do |conn|
+          Sidekiq1.redis do |conn|
             conn.sadd("processes", "process-#{i}")
             conn.hset("process-#{i}", "info", nil)
           end

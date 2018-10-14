@@ -8,13 +8,13 @@ rescue LoadError
   $HAS_AJ = false
 end
 
-class TestRails < Sidekiq::Test
+class TestRails < Sidekiq1::Test
 
   describe 'ActiveJob' do
-    it 'does not allow Sidekiq::Worker in AJ::Base classes' do
+    it 'does not allow Sidekiq1::Worker in AJ::Base classes' do
       ex = assert_raises ArgumentError do
         c = Class.new(ActiveJob::Base)
-        c.send(:include, Sidekiq::Worker)
+        c.send(:include, Sidekiq1::Worker)
       end
       assert_includes ex.message, "cannot include"
     end if $HAS_AJ

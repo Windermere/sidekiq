@@ -7,7 +7,7 @@ $TESTING = false
 require_relative '../lib/sidekiq/cli'
 
 begin
-  cli = Sidekiq::CLI.instance
+  cli = Sidekiq1::CLI.instance
   cli.parse
   cli.run
 rescue => e

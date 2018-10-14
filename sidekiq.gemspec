@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-require File.expand_path('../lib/sidekiq/version', __FILE__)
+require File.expand_path('../lib/sidekiq1/version', __FILE__)
 
 Gem::Specification.new do |gem|
   gem.authors       = ["Mike Perham"]
@@ -12,9 +12,9 @@ Gem::Specification.new do |gem|
   gem.executables   = ['sidekiq', 'sidekiqctl']
   gem.files         = `git ls-files | grep -Ev '^(test|myapp|examples)'`.split("\n")
   gem.test_files    = []
-  gem.name          = "sidekiq"
+  gem.name          = "sidekiq1"
   gem.require_paths = ["lib"]
-  gem.version       = Sidekiq::VERSION
+  gem.version       = Sidekiq1::VERSION
   gem.required_ruby_version = ">= 2.2.2"
 
   gem.add_dependency 'redis', '>= 3.3.5', '< 5'
